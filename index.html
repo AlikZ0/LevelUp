@@ -149,6 +149,24 @@
     </div>
   </div>
 
+  <!-- ===== Achievement modal ===== -->
+  <div class="modal-backdrop" id="achvModal" hidden>
+    <div class="modal">
+      <h3><span data-icon="trophy" data-icon-size="18" class="achv-title-ic"></span>Отметить достижение</h3>
+      <div class="achv-modal-goal" id="achvModalGoal"></div>
+      <label class="field">
+        <span>Что ты выполнил / чего достиг?</span>
+        <input type="text" id="achvTitle" maxlength="60" placeholder="Например: Выучил React" />
+      </label>
+      <p class="achv-note">После сохранения цель переедет в «Достижения» и останется там навсегда — вернуть её в активные будет нельзя.</p>
+      <div class="modal-actions">
+        <span class="spacer"></span>
+        <button class="btn ghost" id="achvCancelBtn">Отмена</button>
+        <button class="btn primary" id="achvSaveBtn"><span data-icon="trophy"></span>Сохранить достижение</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== Toast ===== -->
   <div class="toast" id="toast" hidden></div>
 

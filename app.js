@@ -43,7 +43,6 @@
     apple: '<path d="M12 8.2C11 6 8.6 5.6 6.9 6.9 5.2 8.2 4.9 11.6 6.4 15c1 2.3 2.5 4 3.7 4 .8 0 1-.4 1.9-.4s1.1.4 1.9.4c1.2 0 2.7-1.7 3.7-4 1.5-3.4 1.2-6.8-.5-8.1C15.4 5.6 13 6 12 8.2z"/><path d="M12 8.2c0-2 1-3.3 2.6-3.8"/>',
     flame: '<path d="M12 3c.5 3 3.5 4.2 3.5 7.8A3.5 3.5 0 0 1 8.5 11c0-1.3.4-2.2 1.2-3C11 9 12 6 12 3z"/>',
     trophy: '<path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 6H4.5v1A3.5 3.5 0 0 0 8 10.5M17 6h2.5v1a3.5 3.5 0 0 1-3.5 3.5"/><path d="M9.5 13.5h5l.4 3h-5.8z"/><path d="M8 20h8M12 16.5V20"/>',
-    rotate: '<path d="M4 12a8 8 0 0 1 13.7-5.6L20 9M20 4v5h-5"/><path d="M20 12a8 8 0 0 1-13.7 5.6L4 15M4 20v-5h5"/>',
   };
   const GOAL_ICONS = ["target", "dumbbell", "book", "droplet", "activity", "code",
     "music", "leaf", "pen", "chat", "coin", "heart", "star", "sunrise", "apple", "flame"];
@@ -381,7 +380,7 @@
       if (c) { c.classList.remove("pop"); void c.offsetWidth; c.classList.add("pop"); }
     }));
     $$("[data-edit]", grid).forEach((b) => b.addEventListener("click", () => openGoalModal(b.dataset.edit)));
-    $$("[data-achieve]", grid).forEach((b) => b.addEventListener("click", () => achieveGoal(b.dataset.achieve)));
+    $$("[data-achieve]", grid).forEach((b) => b.addEventListener("click", () => openAchieveModal(b.dataset.achieve)));
   }
 
   /* ---------- Достижения ---------- */
@@ -396,35 +395,47 @@
     for (const g of list) {
       const card = el("div", "achv-card");
       card.style.setProperty("--goal-color", g.color || "#4f46e5");
+      const title = g.achievementTitle || g.name;
       card.innerHTML = `
         <div class="achv-ribbon">${icon("trophy", 14)} Достигнуто</div>
         <div class="goal-top">
           <div class="goal-icon">${renderGoalIcon(g.icon)}</div>
           <div class="goal-info">
-            <div class="goal-name">${escapeHtml(g.name)}</div>
+            <div class="goal-name">${escapeHtml(title)}</div>
             <div class="goal-sub">${formatDate(g.achievedAt)}</div>
           </div>
-          <button class="goal-iconbtn" title="Редактировать" data-edit="${g.id}">${icon("pencil", 16)}</button>
-        </div>
-        <button class="btn ghost small achv-revert" data-revert="${g.id}">${icon("rotate", 15)} Вернуть в активные</button>`;
+        </div>`;
       grid.appendChild(card);
     }
-    $$("[data-edit]", grid).forEach((b) => b.addEventListener("click", () => openGoalModal(b.dataset.edit)));
-    $$("[data-revert]", grid).forEach((b) => b.addEventListener("click", () => unachieveGoal(b.dataset.revert)));
   }
-  function achieveGoal(id) {
+
+  // Достижение оформляется через модалку: ввод названия → сохранение (без возврата)
+  let achievingId = null;
+  function openAchieveModal(id) {
     const g = goalById(id);
     if (!g) return;
+    achievingId = id;
+    $("#achvModalGoal").innerHTML =
+      `<div class="goal-icon" style="--goal-color:${g.color || "#4f46e5"}">${renderGoalIcon(g.icon, 20)}</div>
+       <span>Цель: <b>${escapeHtml(g.name)}</b></span>`;
+    const inp = $("#achvTitle");
+    inp.value = g.name;
+    $("#achvModal").hidden = false;
+    setTimeout(() => { inp.focus(); inp.select(); }, 30);
+  }
+  function closeAchieveModal() { $("#achvModal").hidden = true; achievingId = null; }
+  function confirmAchieve() {
+    if (!achievingId) return;
+    const g = goalById(achievingId);
+    if (!g) { closeAchieveModal(); return; }
+    const title = $("#achvTitle").value.trim();
+    if (!title) { toast("Впиши, что ты выполнил", "warn"); return; }
+    g.achievementTitle = title;
     g.achievedAt = Date.now();
-    save(); render();
-    toast(`🏆 Цель достигнута: ${g.name}!`, "good");
-  }
-  function unachieveGoal(id) {
-    const g = goalById(id);
-    if (!g) return;
-    delete g.achievedAt;
-    save(); render();
-    toast("Цель снова в активных", "warn");
+    save();
+    closeAchieveModal();
+    render();
+    toast(`🏆 Достижение: ${title}!`, "good");
   }
 
   /* ---------- Календарь ---------- */
@@ -677,6 +688,11 @@
     $("#goalModal").addEventListener("click", (e) => { if (e.target.id === "goalModal") closeGoalModal(); });
     $("#goalName").addEventListener("keydown", (e) => { if (e.key === "Enter") saveGoal(); });
 
+    $("#achvSaveBtn").addEventListener("click", confirmAchieve);
+    $("#achvCancelBtn").addEventListener("click", closeAchieveModal);
+    $("#achvModal").addEventListener("click", (e) => { if (e.target.id === "achvModal") closeAchieveModal(); });
+    $("#achvTitle").addEventListener("keydown", (e) => { if (e.key === "Enter") confirmAchieve(); });
+
     $("#prevDay").addEventListener("click", () => {
       const cand = addDays(viewDate, -1);
       if (beforeStart(cand)) { toast("Это точка старта", "warn"); return; }
@@ -701,7 +717,11 @@
     });
     $("#resetBtn").addEventListener("click", resetAll);
 
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#goalModal").hidden) closeGoalModal(); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      if (!$("#goalModal").hidden) closeGoalModal();
+      if (!$("#achvModal").hidden) closeAchieveModal();
+    });
     window.addEventListener("storage", (e) => { if (e.key === STORAGE_KEY) { state = load(); render(); } });
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     mq.addEventListener("change", () => { if (!localStorage.getItem(THEME_KEY)) renderThemeToggle(); });
