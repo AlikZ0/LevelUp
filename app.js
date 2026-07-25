@@ -25,6 +25,7 @@
     calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9.5h16M8 3v4M16 3v4"/>',
     list: '<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
     refresh: '<path d="M20 11a8 8 0 1 0-.5 4"/><path d="M20 4v5h-5"/>',
+    chart: '<path d="M4 20V4M4 20h16M8 16v-4M12 16V8M16 16v-7"/>',
     flag: '<path d="M6 21V4M6 4h11l-2 3.5L17 11H6"/>',
     sun: '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M4.5 12h-2M21.5 12h-2M5.8 5.8L4.4 4.4M19.6 19.6l-1.4-1.4M18.2 5.8l1.4-1.4M4.4 19.6l1.4-1.4"/>',
     moon: '<path d="M20 14.2A8 8 0 1 1 9.8 4 6.3 6.3 0 0 0 20 14.2z"/>',
@@ -501,6 +502,71 @@
   }
   function closeDayLog() { $("#dayLogModal").hidden = true; }
 
+  /* ---------- История и статистика ---------- */
+  function goalDoneCount(goalId) {
+    let n = 0;
+    for (const d in state.log) if (state.log[d][goalId]) n++;
+    return n;
+  }
+  function bestStreakForGoal(goalId) {
+    const days = Object.keys(state.log).filter((d) => state.log[d][goalId]).sort();
+    if (!days.length) return 0;
+    let best = 1, cur = 1;
+    for (let i = 1; i < days.length; i++) {
+      if (isSameDay(addDays(parseKey(days[i - 1]), 1), parseKey(days[i]))) { cur++; best = Math.max(best, cur); }
+      else cur = 1;
+    }
+    return best;
+  }
+  function statsGoalRow(g) {
+    const today = new Date(), N = 14;
+    let dots = "";
+    for (let i = N - 1; i >= 0; i--) {
+      const d = addDays(today, -i);
+      let cls = "na";
+      if (goalExistsOn(g, d)) cls = isDone(dateKey(d), g.id) ? "on" : "off";
+      dots += `<span class="st-dot ${cls}" title="${humanDate(d)}"></span>`;
+    }
+    const total = goalDoneCount(g.id), streak = streakFor(g.id, today), best = bestStreakForGoal(g.id);
+    return `<div class="st-goal" style="--goal-color:${g.color || "#4f46e5"}">
+      <div class="st-goal-top"><span class="goal-icon">${renderGoalIcon(g.icon, 18)}</span>
+        <span class="st-name">${escapeHtml(g.name)}</span></div>
+      <div class="st-dots" title="Последние 14 дней">${dots}</div>
+      <div class="st-meta">Выполнено: <b>${total}</b> · Серия: <b>${streak}</b> · Лучшая: <b>${best}</b></div>
+    </div>`;
+  }
+  function statsHistory() {
+    const days = Object.keys(state.log)
+      .filter((d) => Object.keys(state.log[d]).length > 0).sort().reverse();
+    const rows = days.map((dk) => {
+      const d = parseKey(dk);
+      const done = goalsExistingOn(d).filter((g) => isDone(dk, g.id));
+      if (!done.length) return "";
+      const xp = done.reduce((n, g) => n + (Number(g.xp) || 0), 0);
+      const chips = done.map((g) =>
+        `<span class="st-chip" style="--goal-color:${g.color || "#4f46e5"}">${renderGoalIcon(g.icon, 14)} ${escapeHtml(g.name)}</span>`).join("");
+      return `<div class="st-day"><div class="st-day-head">${humanDate(d)} · +${xp} XP</div><div class="st-chips">${chips}</div></div>`;
+    }).filter(Boolean).join("");
+    return rows || `<div class="daylog-empty">Пока нет истории — отметь первое выполнение</div>`;
+  }
+  function openStats() {
+    const active = activeGoals();
+    const achieved = achievedGoals();
+    const goalsHtml = active.length ? active.map(statsGoalRow).join("")
+      : `<div class="daylog-empty">Нет активных целей</div>`;
+    const achievedHtml = achieved.length
+      ? `<div class="st-section"><div class="daylog-head" style="color:var(--gold)">${icon("trophy", 15)} Достижения (${achieved.length})</div>` +
+        achieved.map((g) => `<div class="st-chip" style="--goal-color:${g.color || "#4f46e5"}">${renderGoalIcon(g.icon, 14)} ${escapeHtml(g.achievementTitle || g.name)} · ${formatDate(g.achievedAt)}</div>`).join("") +
+        `</div>`
+      : "";
+    $("#statsBody").innerHTML =
+      `<div class="st-section"><div class="daylog-head good">${icon("chart", 15)} По целям (последние 14 дней)</div>${goalsHtml}</div>` +
+      achievedHtml +
+      `<div class="st-section"><div class="daylog-head">${icon("calendar", 15)} История по дням</div>${statsHistory()}</div>`;
+    $("#statsModal").hidden = false;
+  }
+  function closeStats() { $("#statsModal").hidden = true; }
+
   /* ---------- Достижения ---------- */
   function renderAchievements() {
     const section = $("#achvSection");
@@ -812,6 +878,10 @@
     $("#dayLogCloseBtn").addEventListener("click", closeDayLog);
     $("#dayLogModal").addEventListener("click", (e) => { if (e.target.id === "dayLogModal") closeDayLog(); });
 
+    $("#statsBtn").addEventListener("click", openStats);
+    $("#statsCloseBtn").addEventListener("click", closeStats);
+    $("#statsModal").addEventListener("click", (e) => { if (e.target.id === "statsModal") closeStats(); });
+
     $("#prevDay").addEventListener("click", () => setViewDate(addDays(viewDate, -1)));
     $("#nextDay").addEventListener("click", () => {
       if (isSameDay(viewDate, new Date())) return;
@@ -837,6 +907,7 @@
       if (!$("#achvModal").hidden) closeAchieveModal();
       if (!$("#completeModal").hidden) closeCompleteModal();
       if (!$("#dayLogModal").hidden) closeDayLog();
+      if (!$("#statsModal").hidden) closeStats();
     });
     window.addEventListener("storage", (e) => { if (e.key === STORAGE_KEY) { state = load(); render(); } });
     const mq = window.matchMedia("(prefers-color-scheme: dark)");

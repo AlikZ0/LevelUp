@@ -117,6 +117,7 @@
 
     <div class="daylog-bar">
       <button class="btn ghost" id="dayLogBtn"><span data-icon="list"></span>Итоги дня — что сделано и что осталось</button>
+      <button class="btn ghost" id="statsBtn"><span data-icon="chart"></span>История и статистика</button>
     </div>
 
     <footer class="footer">
@@ -194,6 +195,18 @@
       <div class="modal-actions">
         <span class="spacer"></span>
         <button class="btn primary" id="dayLogCloseBtn">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== History & stats modal ===== -->
+  <div class="modal-backdrop" id="statsModal" hidden>
+    <div class="modal modal-wide">
+      <h3>История и статистика</h3>
+      <div id="statsBody"></div>
+      <div class="modal-actions">
+        <span class="spacer"></span>
+        <button class="btn primary" id="statsCloseBtn">Закрыть</button>
       </div>
     </div>
   </div>
