@@ -1,5 +1,8 @@
-/* LevelUp — Service Worker (offline app shell) */
-const CACHE = "levelup-shell-v1";
+/* LevelUp — Service Worker
+   Стратегия: network-first для HTML/навигации (всегда свежая версия при сети),
+   stale-while-revalidate для ассетов; кэш используется как офлайн-фолбэк. */
+const VERSION = "v2";
+const CACHE = "levelup-shell-" + VERSION;
 const ASSETS = [
   "./",
   "./index.html",
@@ -12,14 +15,12 @@ const ASSETS = [
   "./icons/apple-touch-icon.png",
 ];
 
-// Установка: кэшируем оболочку приложения
 self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting())
   );
 });
 
-// Активация: удаляем старые версии кэша
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys()
@@ -28,27 +29,42 @@ self.addEventListener("activate", (e) => {
   );
 });
 
-// Запросы: сначала кэш, затем сеть; навигации оффлайн → index.html
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
+  const sameOrigin = new URL(req.url).origin === self.location.origin;
+  const isHTML = req.mode === "navigate" ||
+    (req.headers.get("accept") || "").includes("text/html");
 
-  e.respondWith(
-    caches.match(req).then((cached) => {
-      if (cached) return cached;
-      return fetch(req)
+  if (isHTML) {
+    // Навигации: сначала сеть (свежая версия), офлайн → кэш
+    e.respondWith(
+      fetch(req)
         .then((res) => {
-          // подкладываем в кэш успешные same-origin ответы
-          if (res && res.ok && new URL(req.url).origin === self.location.origin) {
+          if (res && res.ok && sameOrigin) {
             const copy = res.clone();
             caches.open(CACHE).then((c) => c.put(req, copy));
           }
           return res;
         })
-        .catch(() => {
-          if (req.mode === "navigate") return caches.match("./index.html");
-          return Response.error();
-        });
+        .catch(() => caches.match(req).then((r) => r || caches.match("./index.html")))
+    );
+    return;
+  }
+
+  // Ассеты: отдаём из кэша сразу, параллельно обновляем в фоне
+  e.respondWith(
+    caches.match(req).then((cached) => {
+      const network = fetch(req)
+        .then((res) => {
+          if (res && res.ok && sameOrigin) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(req, copy));
+          }
+          return res;
+        })
+        .catch(() => cached);
+      return cached || network;
     })
   );
 });
