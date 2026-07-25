@@ -1,7 +1,7 @@
 /* LevelUp — Service Worker
    Стратегия: network-first для HTML/навигации (всегда свежая версия при сети),
    stale-while-revalidate для ассетов; кэш используется как офлайн-фолбэк. */
-const VERSION = "v2";
+const VERSION = "v3";
 const CACHE = "levelup-shell-" + VERSION;
 const ASSETS = [
   "./",

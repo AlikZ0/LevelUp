@@ -187,9 +187,22 @@
 
   <script src="app.js"></script>
   <script>
+    // Service Worker + бесшовное авто-обновление на новую версию
     if ("serviceWorker" in navigator) {
+      // Перезагружаем только при обновлении (когда воркер уже был), не при первой установке
+      if (navigator.serviceWorker.controller) {
+        var lu_refreshed = false;
+        navigator.serviceWorker.addEventListener("controllerchange", function () {
+          if (lu_refreshed) return;
+          lu_refreshed = true;
+          window.location.reload();
+        });
+      }
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("sw.js").catch(function () { /* оффлайн-режим недоступен */ });
+        navigator.serviceWorker.register("sw.js").then(function (reg) {
+          reg.update();
+          setInterval(function () { reg.update(); }, 60 * 60 * 1000);
+        }).catch(function () { /* оффлайн-режим недоступен */ });
       });
     }
   </script>
