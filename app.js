@@ -97,8 +97,8 @@
     return startOfDay(parseKey(key));
   }
   const inFuture = (d) => startOfDay(d) > startOfDay(new Date());
-  // Редактировать можно любой день, кроме будущего (точка старта — только метка)
-  const isEditableDay = (d) => !inFuture(d);
+  // Редактировать можно ТОЛЬКО сегодняшний день; остальные — только просмотр
+  const isEditableDay = (d) => isSameDay(d, new Date());
 
   /* ---------- Хранилище ---------- */
   function defaultState() {
@@ -223,7 +223,7 @@
   }
   function toggleGoal(goalId) {
     if (!isEditableDay(viewDate)) {
-      toast("Нельзя отмечать будущее", "warn");
+      toast("Отмечать можно только сегодняшний день", "warn");
       return;
     }
     const key = dateKey(viewDate);
@@ -396,7 +396,7 @@
         <div class="goal-week-dots">${dots}</div>
         <div class="goal-action">
           <button class="check-btn${done ? " done" : ""}" data-toggle="${g.id}"${locked ? " disabled" : ""}>
-            ${done ? icon("check", 18) + " Выполнено · отменить" : (locked ? "Недоступно" : "Отметить выполнение")}
+            ${done ? icon("check", 18) + " Выполнено" : (locked ? "Не выполнено" : "Отметить выполнение")}
             <span class="xp-pill">+${Number(g.xp) || 0} XP</span>
           </button>
         </div>`;
@@ -424,7 +424,7 @@
     const g = goalById(id);
     if (!g) return;
     if (!isEditableDay(viewDate)) {
-      toast("Нельзя отмечать будущее", "warn");
+      toast("Отмечать можно только сегодняшний день", "warn");
       return;
     }
     completingId = id;
@@ -560,7 +560,7 @@
       const key = dateKey(d);
       const ratio = totalGoals ? completionsOn(key) / totalGoals : 0;
       const perfect = totalGoals > 0 && ratio >= 1;
-      const disabled = !isEditableDay(d);
+      const disabled = inFuture(d); // прошлые дни доступны для просмотра, будущее — нет
       const isTd = isSameDay(d, new Date());
       const isSel = isSameDay(d, viewDate);
       const isStart = isSameDay(d, startObj());
@@ -601,7 +601,7 @@
     const totalGoals = active.length;
     for (let day = 1; day <= daysInMonth; day++) {
       const d = new Date(y, m, day);
-      if (!isEditableDay(d)) continue;
+      if (inFuture(d)) continue; // считаем прошедшие дни месяца и сегодня
       trackedDays++;
       const key = dateKey(d);
       const dc = completionsOn(key);
