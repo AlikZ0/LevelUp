@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LevelUp — прокачай свои цели</title>
+  <meta name="description" content="Игровой трекер целей: выполняй ежедневные действия, получай опыт, прокачивай уровень. Все данные хранятся локально." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- ===== Header ===== -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-logo">🚀</span>
+        <div>
+          <h1>LevelUp</h1>
+          <p class="tagline">Прокачивай себя каждый день</p>
+        </div>
+      </div>
+
+      <div class="level-block" title="Твой общий уровень">
+        <div class="level-badge">
+          <span class="level-num" id="levelNum">1</span>
+          <span class="level-label">УРОВЕНЬ</span>
+        </div>
+        <div class="level-progress">
+          <div class="level-progress-top">
+            <span id="levelTitle">Новичок</span>
+            <span id="xpText" class="xp-text">0 / 100 XP</span>
+          </div>
+          <div class="xpbar"><div class="xpbar-fill" id="xpFill"></div></div>
+          <div class="level-progress-bottom">
+            <span id="totalXp">Всего опыта: 0 XP</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <button class="btn ghost" id="exportBtn" title="Скачать резервную копию (JSON)">⬇️ Экспорт</button>
+        <button class="btn ghost" id="importBtn" title="Загрузить данные из файла">⬆️ Импорт</button>
+        <input type="file" id="importInput" accept="application/json,.json" hidden />
+      </div>
+    </header>
+
+    <!-- ===== Date navigation ===== -->
+    <section class="daybar">
+      <button class="btn round" id="prevDay" title="Предыдущий день">‹</button>
+      <div class="daybar-center">
+        <h2 id="dayTitle">Сегодня</h2>
+        <span id="dayDate" class="day-date"></span>
+      </div>
+      <button class="btn round" id="nextDay" title="Следующий день">›</button>
+      <button class="btn ghost small" id="todayBtn" title="Вернуться к сегодняшнему дню">Сегодня</button>
+    </section>
+
+    <!-- ===== Stats row ===== -->
+    <section class="stats-row" id="statsRow"></section>
+
+    <!-- ===== Goals ===== -->
+    <section class="goals-section">
+      <div class="section-head">
+        <h3>Мои цели</h3>
+        <button class="btn primary" id="addGoalBtn">＋ Новая цель</button>
+      </div>
+      <div class="goals-grid" id="goalsGrid"></div>
+      <p class="empty-hint" id="emptyHint" hidden>
+        Пока нет ни одной цели. Нажми «＋ Новая цель», чтобы добавить первую 🎯
+      </p>
+    </section>
+
+    <!-- ===== Weekly overview ===== -->
+    <section class="week-section">
+      <div class="section-head">
+        <h3>Обзор недели</h3>
+        <span class="muted" id="weekRange"></span>
+      </div>
+      <div class="week-table-wrap">
+        <table class="week-table" id="weekTable"></table>
+      </div>
+      <div class="week-summary" id="weekSummary"></div>
+    </section>
+
+    <footer class="footer">
+      <span id="saveStatus" class="save-status">💾 Данные сохраняются локально в этом браузере</span>
+      <button class="btn ghost small danger" id="resetBtn" title="Полностью очистить все данные">Сбросить всё</button>
+    </footer>
+  </div>
+
+  <!-- ===== Goal editor modal ===== -->
+  <div class="modal-backdrop" id="goalModal" hidden>
+    <div class="modal">
+      <h3 id="goalModalTitle">Новая цель</h3>
+      <label class="field">
+        <span>Название</span>
+        <input type="text" id="goalName" maxlength="40" placeholder="Например: Спорт, Английский, Чтение…" />
+      </label>
+      <label class="field">
+        <span>Иконка</span>
+        <div class="emoji-picker" id="emojiPicker"></div>
+      </label>
+      <label class="field">
+        <span>Цвет</span>
+        <div class="color-picker" id="colorPicker"></div>
+      </label>
+      <label class="field">
+        <span>Опыт за выполнение (XP)</span>
+        <input type="number" id="goalXp" min="1" max="1000" value="10" />
+      </label>
+      <div class="modal-actions">
+        <button class="btn ghost danger" id="deleteGoalBtn" hidden>Удалить</button>
+        <span class="spacer"></span>
+        <button class="btn ghost" id="cancelGoalBtn">Отмена</button>
+        <button class="btn primary" id="saveGoalBtn">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Toast ===== -->
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
