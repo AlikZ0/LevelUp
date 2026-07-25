@@ -387,8 +387,8 @@
             <div class="goal-name">${escapeHtml(g.name)}</div>
             <div class="goal-sub">+${Number(g.xp) || 0} XP за выполнение</div>
           </div>
-          <button class="goal-iconbtn" title="Отметить цель достигнутой" data-achieve="${g.id}">${icon("trophy", 16)}</button>
-          <button class="goal-iconbtn" title="Редактировать" data-edit="${g.id}">${icon("pencil", 16)}</button>
+          <button class="goal-iconbtn" title="Отметить цель достигнутой" data-achieve="${g.id}"${locked ? " disabled" : ""}>${icon("trophy", 16)}</button>
+          <button class="goal-iconbtn" title="Редактировать" data-edit="${g.id}"${locked ? " disabled" : ""}>${icon("pencil", 16)}</button>
         </div>
         <div class="goal-streak ${streak > 0 ? "active" : "inactive"}">
           ${streak > 0 ? `${icon("flame", 15)} Серия: ${streak} ${plural(streak, "день", "дня", "дней")}`
@@ -415,8 +415,8 @@
       const c = b.closest(".goal-card");
       if (c) { c.classList.remove("pop"); void c.offsetWidth; c.classList.add("pop"); }
     }));
-    $$("[data-edit]", grid).forEach((b) => b.addEventListener("click", () => openGoalModal(b.dataset.edit)));
-    $$("[data-achieve]", grid).forEach((b) => b.addEventListener("click", () => openAchieveModal(b.dataset.achieve)));
+    $$("[data-edit]", grid).forEach((b) => b.addEventListener("click", () => { if (!b.disabled) openGoalModal(b.dataset.edit); }));
+    $$("[data-achieve]", grid).forEach((b) => b.addEventListener("click", () => { if (!b.disabled) openAchieveModal(b.dataset.achieve); }));
   }
 
   /* ---------- Подтверждение выполнения ---------- */
