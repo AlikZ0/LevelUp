@@ -213,6 +213,8 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
 }
 .goal-iconbtn:hover { background: var(--surface-2); color: var(--text); }
 .goal-iconbtn[data-achieve]:hover { color: var(--gold); }
+.goal-iconbtn:disabled { opacity: .3; cursor: default; }
+.goal-iconbtn:disabled:hover { background: transparent; color: var(--muted); }
 
 .goal-streak {
   display: inline-flex; align-items: center; gap: 5px;
