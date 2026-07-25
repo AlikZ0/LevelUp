@@ -1,6 +1,7 @@
 /* ============================================================
    LevelUp — игровой трекер целей (frontend-only)
    Данные в localStorage. Экспорт/импорт JSON. SVG-иконки. Тёмная тема.
+   Календарь прошедших дней + редактируемая точка старта.
    ============================================================ */
 
 (() => {
@@ -13,7 +14,6 @@
 
   /* ---------- Набор SVG-иконок (viewBox 0 0 24 24, stroke=currentColor) ---------- */
   const ICONS = {
-    // Интерфейс
     "chevron-left": '<path d="M15 6l-6 6 6 6"/>',
     "chevron-right": '<path d="M9 6l6 6-6 6"/>',
     download: '<path d="M12 4v10M8 11l4 4 4-4M5 19h14"/>',
@@ -23,9 +23,9 @@
     trash: '<path d="M4 7h16M9 7V5h6v2M6.5 7l1 12.5h9L17.5 7"/>',
     check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
     calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9.5h16M8 3v4M16 3v4"/>',
+    flag: '<path d="M6 21V4M6 4h11l-2 3.5L17 11H6"/>',
     sun: '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M4.5 12h-2M21.5 12h-2M5.8 5.8L4.4 4.4M19.6 19.6l-1.4-1.4M18.2 5.8l1.4-1.4M4.4 19.6l1.4-1.4"/>',
     moon: '<path d="M20 14.2A8 8 0 1 1 9.8 4 6.3 6.3 0 0 0 20 14.2z"/>',
-    // Иконки целей
     target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/>',
     dumbbell: '<path d="M6.5 7v10M4 9.5v5M17.5 7v10M20 9.5v5M6.5 12h11"/>',
     book: '<path d="M12 6C10.5 4.8 8 4 5 4v13c3 0 5.5.8 7 2 1.5-1.2 4-2 7-2V4c-3 0-5.5.8-7 2z"/><path d="M12 6v13"/>',
@@ -43,20 +43,15 @@
     apple: '<path d="M12 8.2C11 6 8.6 5.6 6.9 6.9 5.2 8.2 4.9 11.6 6.4 15c1 2.3 2.5 4 3.7 4 .8 0 1-.4 1.9-.4s1.1.4 1.9.4c1.2 0 2.7-1.7 3.7-4 1.5-3.4 1.2-6.8-.5-8.1C15.4 5.6 13 6 12 8.2z"/><path d="M12 8.2c0-2 1-3.3 2.6-3.8"/>',
     flame: '<path d="M12 3c.5 3 3.5 4.2 3.5 7.8A3.5 3.5 0 0 1 8.5 11c0-1.3.4-2.2 1.2-3C11 9 12 6 12 3z"/>',
   };
-
-  // Иконки, доступные для выбора у цели
   const GOAL_ICONS = ["target", "dumbbell", "book", "droplet", "activity", "code",
     "music", "leaf", "pen", "chat", "coin", "heart", "star", "sunrise", "apple", "flame"];
-
   const COLORS = ["#4f46e5", "#0ea5e9", "#16a34a", "#f59e0b", "#ef4444",
                   "#ec4899", "#8b5cf6", "#14b8a6", "#f97316", "#64748b"];
-
   const LEVEL_TITLES = [
     [1, "Новичок"], [3, "Ученик"], [5, "Практик"], [8, "Знаток"],
     [12, "Мастер"], [16, "Эксперт"], [21, "Чемпион"], [27, "Легенда"], [35, "Титан"],
   ];
-
-  const RING_C = 2 * Math.PI * 24; // длина окружности кольца (r=24)
+  const RING_C = 2 * Math.PI * 24;
 
   /* ---------- Иконка ---------- */
   function icon(name, size = 20) {
@@ -68,13 +63,13 @@
   }
   function renderGoalIcon(name, size = 22) {
     if (ICONS[name]) return icon(name, size);
-    // обратная совместимость: старые данные с эмодзи
     return `<span class="fallback">${escapeHtml(name || "🎯")}</span>`;
   }
 
   /* ---------- Состояние ---------- */
   let state = null;
-  let viewDate = new Date();
+  let viewDate = startOfDay(new Date());
+  let calMonth = firstOfMonth(new Date());
 
   /* ---------- Даты ---------- */
   const pad = (n) => String(n).padStart(2, "0");
@@ -82,15 +77,30 @@
   const todayKey = () => dateKey(new Date());
   const isSameDay = (a, b) => dateKey(a) === dateKey(b);
   function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  function firstOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+  function parseKey(key) { const [y, m, d] = String(key).split("-").map(Number); return new Date(y, (m || 1) - 1, d || 1); }
   const WEEKDAYS = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+  const CAL_WD = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
   const MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня",
                   "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+  const MONTHS_NOM = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+                      "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
   const humanDate = (d) => `${WEEKDAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
   function last7Days(end) { const a = []; for (let i = 6; i >= 0; i--) a.push(addDays(end, -i)); return a; }
 
+  /* Дата старта как объект (00:00 локального дня) */
+  function startObj() {
+    const key = state && state.startDate ? state.startDate : todayKey();
+    return startOfDay(parseKey(key));
+  }
+  const beforeStart = (d) => startOfDay(d) < startObj();
+  const inFuture = (d) => startOfDay(d) > startOfDay(new Date());
+  const isEditableDay = (d) => !beforeStart(d) && !inFuture(d);
+
   /* ---------- Хранилище ---------- */
   function defaultState() {
-    return { version: SCHEMA_VERSION, createdAt: new Date().toISOString(), goals: [], log: {} };
+    return { version: SCHEMA_VERSION, createdAt: new Date().toISOString(), startDate: todayKey(), goals: [], log: {} };
   }
   function seedState() {
     const s = defaultState();
@@ -108,10 +118,7 @@
       return migrate(JSON.parse(raw));
     } catch (e) {
       console.error("Ошибка чтения, пробую резервную копию", e);
-      try {
-        const bak = localStorage.getItem(BACKUP_KEY);
-        if (bak) return migrate(JSON.parse(bak));
-      } catch (_) {}
+      try { const bak = localStorage.getItem(BACKUP_KEY); if (bak) return migrate(JSON.parse(bak)); } catch (_) {}
       return seedState();
     }
   }
@@ -121,9 +128,19 @@
     s.createdAt = data.createdAt || s.createdAt;
     s.goals = Array.isArray(data.goals) ? data.goals.filter(validGoal) : [];
     s.log = (data.log && typeof data.log === "object") ? data.log : {};
+    // Точка старта: сохранённая → самая ранняя запись → дата создания → сегодня
+    if (isValidKey(data.startDate)) {
+      s.startDate = data.startDate;
+    } else {
+      const logDays = Object.keys(s.log).filter((d) => s.log[d] && Object.keys(s.log[d]).length > 0).sort();
+      if (logDays.length) s.startDate = logDays[0];
+      else if (data.createdAt) s.startDate = dateKey(new Date(data.createdAt));
+      else s.startDate = todayKey();
+    }
     return s;
   }
   const validGoal = (g) => g && typeof g.id === "string" && typeof g.name === "string";
+  const isValidKey = (k) => typeof k === "string" && /^\d{4}-\d{2}-\d{2}$/.test(k);
 
   let saveTimer = null;
   function save() {
@@ -133,10 +150,7 @@
       if (prev) localStorage.setItem(BACKUP_KEY, prev);
       localStorage.setItem(STORAGE_KEY, json);
       flashSaved();
-    } catch (e) {
-      console.error("Ошибка сохранения", e);
-      toast("Не удалось сохранить данные", "warn");
-    }
+    } catch (e) { console.error("Ошибка сохранения", e); toast("Не удалось сохранить данные", "warn"); }
   }
   function flashSaved() {
     const el = $("#saveStatus");
@@ -161,7 +175,6 @@
   }
   const goalById = (id) => state.goals.find((g) => g.id === id);
   const isDone = (dayKey, goalId) => !!(state.log[dayKey] && state.log[dayKey][goalId]);
-
   function totalXpEarned() {
     let sum = 0;
     for (const day in state.log) {
@@ -189,14 +202,23 @@
     if (!days.length) return 0;
     let best = 1, cur = 1;
     for (let i = 1; i < days.length; i++) {
-      if (isSameDay(addDays(new Date(days[i - 1]), 1), new Date(days[i]))) { cur++; best = Math.max(best, cur); }
+      if (isSameDay(addDays(parseKey(days[i - 1]), 1), parseKey(days[i]))) { cur++; best = Math.max(best, cur); }
       else cur = 1;
     }
     return best;
   }
 
   /* ---------- Действия ---------- */
+  function setViewDate(d) {
+    viewDate = startOfDay(d);
+    calMonth = firstOfMonth(viewDate);
+    render();
+  }
   function toggleGoal(goalId) {
+    if (!isEditableDay(viewDate)) {
+      toast(beforeStart(viewDate) ? "Этот день раньше точки старта" : "Нельзя отмечать будущее", "warn");
+      return;
+    }
     const key = dateKey(viewDate);
     if (!state.log[key]) state.log[key] = {};
     const wasDone = !!state.log[key][goalId];
@@ -250,7 +272,7 @@
     return e;
   }
 
-  function render() { renderLevel(); renderDaybar(); renderStats(); renderGoals(); renderWeek(); }
+  function render() { renderLevel(); renderDaybar(); renderStats(); renderGoals(); renderCalendar(); renderSummary(); }
 
   function renderLevel() {
     const info = levelInfo(totalXpEarned());
@@ -267,10 +289,13 @@
     const isToday = isSameDay(viewDate, today);
     $("#dayTitle").textContent = isToday ? "Сегодня"
       : isSameDay(viewDate, addDays(today, -1)) ? "Вчера" : WEEKDAYS[viewDate.getDay()];
-    $("#dayDate").textContent = humanDate(viewDate);
+    $("#dayDate").textContent = humanDate(viewDate) + (beforeStart(viewDate) ? " · до старта" : "");
     $("#todayBtn").hidden = isToday;
     $("#nextDay").disabled = isToday;
     $("#nextDay").style.opacity = isToday ? .4 : 1;
+    const atStart = isSameDay(viewDate, startObj());
+    $("#prevDay").disabled = atStart;
+    $("#prevDay").style.opacity = atStart ? .4 : 1;
   }
 
   function renderStats() {
@@ -300,6 +325,7 @@
     $("#emptyHint").hidden = state.goals.length > 0;
     const key = dateKey(viewDate);
     const week = last7Days(viewDate);
+    const locked = !isEditableDay(viewDate);
 
     for (const g of state.goals) {
       const done = isDone(key, g.id);
@@ -327,8 +353,8 @@
         </div>
         <div class="goal-week-dots">${dots}</div>
         <div class="goal-action">
-          <button class="check-btn${done ? " done" : ""}" data-toggle="${g.id}">
-            ${done ? icon("check", 18) + " Выполнено" : "Отметить выполнение"}
+          <button class="check-btn${done ? " done" : ""}" data-toggle="${g.id}"${locked ? " disabled" : ""}>
+            ${done ? icon("check", 18) + " Выполнено" : (locked ? "Недоступно" : "Отметить выполнение")}
             <span class="xp-pill">+${Number(g.xp) || 0} XP</span>
           </button>
         </div>`;
@@ -336,6 +362,7 @@
     }
 
     $$("[data-toggle]", grid).forEach((b) => b.addEventListener("click", () => {
+      if (b.disabled) return;
       toggleGoal(b.dataset.toggle);
       const c = b.closest(".goal-card");
       if (c) { c.classList.remove("pop"); void c.offsetWidth; c.classList.add("pop"); }
@@ -343,68 +370,106 @@
     $$("[data-edit]", grid).forEach((b) => b.addEventListener("click", () => openGoalModal(b.dataset.edit)));
   }
 
-  function renderWeek() {
-    const week = last7Days(viewDate);
-    const table = $("#weekTable");
-    table.innerHTML = "";
-    $("#weekRange").textContent =
-      `${week[0].getDate()} ${MONTHS[week[0].getMonth()]} — ${week[6].getDate()} ${MONTHS[week[6].getMonth()]}`;
+  /* ---------- Календарь ---------- */
+  function renderCalendar() {
+    $("#calMonthLabel").textContent = `${MONTHS_NOM[calMonth.getMonth()]} ${calMonth.getFullYear()}`;
 
-    const thead = el("thead");
-    const hrow = el("tr");
-    hrow.appendChild(el("th", null, "Цель"));
-    week.forEach((d) => {
-      const isTd = isSameDay(d, viewDate);
-      hrow.appendChild(el("th", isTd ? "col-today" : null,
-        `${WEEKDAYS[d.getDay()]}<br><span class="muted">${d.getDate()}</span>`));
-    });
-    thead.appendChild(hrow);
-    table.appendChild(thead);
+    const wd = $("#calWeekdays");
+    wd.innerHTML = "";
+    CAL_WD.forEach((w) => wd.appendChild(el("span", "cal-wd", w)));
 
-    const tbody = el("tbody");
-    if (state.goals.length === 0) {
-      const tr = el("tr");
-      const td = el("td", null, `<span class="muted">Добавь цели, чтобы увидеть прогресс</span>`);
-      td.colSpan = 8;
-      tr.appendChild(td);
-      tbody.appendChild(tr);
-    }
-    for (const g of state.goals) {
-      const tr = el("tr");
-      const nameCell = el("td", "goal-cell",
-        `<span class="cell-ic" style="color:${g.color}">${renderGoalIcon(g.icon, 16)}</span>${escapeHtml(g.name)}`);
-      tr.appendChild(nameCell);
-      week.forEach((d) => {
-        const on = isDone(dateKey(d), g.id);
-        const isTd = isSameDay(d, viewDate);
-        tr.appendChild(el("td", isTd ? "col-today" : null,
-          on ? `<span class="cell-mark on">${icon("check", 16)}</span>`
-             : `<span class="cell-mark off">·</span>`));
+    const grid = $("#calGrid");
+    grid.innerHTML = "";
+    const y = calMonth.getFullYear(), m = calMonth.getMonth();
+    const first = new Date(y, m, 1);
+    const offset = (first.getDay() + 6) % 7; // сдвиг для недели с понедельника
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const totalGoals = state.goals.length;
+
+    for (let i = 0; i < offset; i++) grid.appendChild(el("span", "cal-cell empty"));
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(y, m, day);
+      const key = dateKey(d);
+      const ratio = totalGoals ? completionsOn(key) / totalGoals : 0;
+      const perfect = totalGoals > 0 && ratio >= 1;
+      const disabled = !isEditableDay(d);
+      const isTd = isSameDay(d, new Date());
+      const isSel = isSameDay(d, viewDate);
+      const isStart = isSameDay(d, startObj());
+
+      const cell = el("button", "cal-cell");
+      if (disabled) cell.classList.add("disabled");
+      if (isTd) cell.classList.add("today");
+      if (isSel) cell.classList.add("selected");
+      if (perfect) cell.classList.add("perfect");
+      if (isStart) cell.classList.add("start");
+      cell.type = "button";
+      cell.title = humanDate(d) + (isStart ? " · старт" : "") + (totalGoals ? ` · ${completionsOn(key)}/${totalGoals}` : "");
+      if (!disabled && ratio > 0) {
+        cell.style.background = `color-mix(in srgb, var(--goal-mix, var(--accent)) ${Math.round(18 + ratio * 62)}%, transparent)`;
+        if (ratio >= 0.6) cell.classList.add("filled");
+      }
+      cell.innerHTML = `<span class="cal-num">${day}</span>` +
+        (perfect ? `<span class="cal-check">${icon("check", 12)}</span>` : "");
+      if (!disabled) cell.addEventListener("click", () => {
+        setViewDate(d);
+        const gs = document.querySelector(".goals-section");
+        if (gs) gs.scrollIntoView({ behavior: "smooth", block: "start" });
       });
-      tbody.appendChild(tr);
+      grid.appendChild(cell);
     }
-    table.appendChild(tbody);
 
-    let weekXp = 0, weekDone = 0, perfectDays = 0;
-    week.forEach((d) => {
-      const k = dateKey(d);
-      const dc = completionsOn(k);
-      weekDone += dc;
-      if (state.goals.length > 0 && dc === state.goals.length) perfectDays++;
-      state.goals.forEach((g) => { if (isDone(k, g.id)) weekXp += Number(g.xp) || 0; });
-    });
-    const possible = state.goals.length * 7;
-    const rate = possible ? Math.round((weekDone / possible) * 100) : 0;
+    // Точка старта
+    const inp = $("#startDate");
+    if (inp) { inp.value = state.startDate; inp.max = todayKey(); }
+  }
+
+  function renderSummary() {
+    // Итоги за отображаемый в календаре месяц (в пределах точки старта и сегодня)
+    const y = calMonth.getFullYear(), m = calMonth.getMonth();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    let monthXp = 0, monthDone = 0, perfectDays = 0, trackedDays = 0;
+    const totalGoals = state.goals.length;
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(y, m, day);
+      if (!isEditableDay(d)) continue;
+      trackedDays++;
+      const key = dateKey(d);
+      const dc = completionsOn(key);
+      monthDone += dc;
+      if (totalGoals > 0 && dc === totalGoals) perfectDays++;
+      state.goals.forEach((g) => { if (isDone(key, g.id)) monthXp += Number(g.xp) || 0; });
+    }
+    const possible = trackedDays * totalGoals;
+    const rate = possible ? Math.round((monthDone / possible) * 100) : 0;
 
     const summary = $("#weekSummary");
     summary.innerHTML = "";
     [
-      { v: `${weekXp} XP`, l: "опыта за неделю" },
-      { v: `${weekDone}`, l: "выполнений за неделю" },
+      { v: `${monthXp} XP`, l: "опыта за месяц" },
+      { v: `${monthDone}`, l: "выполнений за месяц" },
       { v: `${rate}%`, l: "выполнено от плана" },
       { v: `${perfectDays}`, l: "идеальных дней (100%)" },
     ].forEach((it) => summary.appendChild(el("div", "summary-card",
       `<div class="v">${it.v}</div><div class="l">${it.l}</div>`)));
+  }
+
+  /* ---------- Точка старта ---------- */
+  function onStartDateChange(e) {
+    const val = e.target.value;
+    if (!isValidKey(val)) { e.target.value = state.startDate; return; }
+    if (parseKey(val) > startOfDay(new Date())) {
+      toast("Точка старта не может быть в будущем", "warn");
+      e.target.value = state.startDate;
+      return;
+    }
+    state.startDate = val;
+    // если текущий выбранный день оказался раньше старта — подвинем на старт
+    if (beforeStart(viewDate)) viewDate = startObj();
+    save();
+    render();
+    toast("Точка старта обновлена", "good");
   }
 
   /* ---------- Модалка цели ---------- */
@@ -494,7 +559,10 @@
       try {
         const migrated = migrate(JSON.parse(reader.result));
         if (!confirm("Импортировать данные из файла?\nТекущие данные будут заменены (предыдущее состояние сохранится в резервной копии).")) return;
-        state = migrated; save(); render();
+        state = migrated;
+        viewDate = startOfDay(new Date());
+        calMonth = firstOfMonth(new Date());
+        save(); render();
         toast("Данные импортированы", "good");
       } catch (e) { console.error(e); toast("Не удалось прочитать файл", "warn"); }
     };
@@ -503,7 +571,10 @@
   function resetAll() {
     if (!confirm("Удалить ВСЕ цели и историю?\nСоветуем сначала сделать экспорт. Действие необратимо.")) return;
     if (!confirm("Точно уверены? Все данные будут стёрты.")) return;
-    state = defaultState(); save(); render();
+    state = defaultState();
+    viewDate = startOfDay(new Date());
+    calMonth = firstOfMonth(new Date());
+    save(); render();
     toast("Всё сброшено", "warn");
   }
 
@@ -544,12 +615,20 @@
     $("#goalModal").addEventListener("click", (e) => { if (e.target.id === "goalModal") closeGoalModal(); });
     $("#goalName").addEventListener("keydown", (e) => { if (e.key === "Enter") saveGoal(); });
 
-    $("#prevDay").addEventListener("click", () => { viewDate = addDays(viewDate, -1); render(); });
+    $("#prevDay").addEventListener("click", () => {
+      const cand = addDays(viewDate, -1);
+      if (beforeStart(cand)) { toast("Это точка старта", "warn"); return; }
+      setViewDate(cand);
+    });
     $("#nextDay").addEventListener("click", () => {
       if (isSameDay(viewDate, new Date())) return;
-      viewDate = addDays(viewDate, 1); render();
+      setViewDate(addDays(viewDate, 1));
     });
-    $("#todayBtn").addEventListener("click", () => { viewDate = new Date(); render(); });
+    $("#todayBtn").addEventListener("click", () => setViewDate(new Date()));
+
+    $("#calPrev").addEventListener("click", () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); render(); });
+    $("#calNext").addEventListener("click", () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); render(); });
+    $("#startDate").addEventListener("change", onStartDateChange);
 
     $("#exportBtn").addEventListener("click", exportData);
     $("#importBtn").addEventListener("click", () => $("#importInput").click());
@@ -561,7 +640,6 @@
 
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#goalModal").hidden) closeGoalModal(); });
     window.addEventListener("storage", (e) => { if (e.key === STORAGE_KEY) { state = load(); render(); } });
-    // если тема не выбрана вручную — следуем за системой
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     mq.addEventListener("change", () => { if (!localStorage.getItem(THEME_KEY)) renderThemeToggle(); });
   }

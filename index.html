@@ -76,14 +76,26 @@
       </p>
     </section>
 
-    <!-- ===== Weekly overview ===== -->
-    <section class="week-section">
+    <!-- ===== Calendar ===== -->
+    <section class="cal-section">
       <div class="section-head">
-        <h3>Обзор недели</h3>
-        <span class="muted" id="weekRange"></span>
+        <h3>Календарь</h3>
+        <div class="cal-nav">
+          <button class="btn round sm" id="calPrev" aria-label="Предыдущий месяц"><span data-icon="chevron-left" data-icon-size="18"></span></button>
+          <span id="calMonthLabel" class="cal-month"></span>
+          <button class="btn round sm" id="calNext" aria-label="Следующий месяц"><span data-icon="chevron-right" data-icon-size="18"></span></button>
+        </div>
       </div>
-      <div class="week-table-wrap">
-        <table class="week-table" id="weekTable"></table>
+      <div class="cal-card">
+        <div class="cal-weekdays" id="calWeekdays"></div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div class="cal-foot">
+          <span class="cal-hint muted">Нажми на любой день, чтобы посмотреть и изменить его</span>
+          <label class="start-field" title="Дата, с которой ты начал отслеживание">
+            <span>Точка старта</span>
+            <input type="date" id="startDate" />
+          </label>
+        </div>
       </div>
       <div class="week-summary" id="weekSummary"></div>
     </section>
