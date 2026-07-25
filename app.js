@@ -245,9 +245,19 @@
       const xp = g ? Number(g.xp) || 0 : 0;
       const before = levelInfo(totalXpEarned() - xp).level;
       const after = levelInfo(totalXpEarned()).level;
-      if (after > before) toast(`Новый уровень ${after} — ${levelTitle(after)}! 🎉`, "good");
-      else toast(`+${xp} XP · ${g ? g.name : ""}`, "good");
+      const undo = { label: "Отменить", onClick: () => undoComplete(key, goalId) };
+      if (after > before) toast(`Новый уровень ${after} — ${levelTitle(after)}! 🎉`, "good", undo);
+      else toast(`+${xp} XP · ${g ? g.name : ""}`, "good", undo);
     }
+  }
+  // Быстрая отмена только что отмеченного выполнения (из уведомления)
+  function undoComplete(key, goalId) {
+    if (state.log[key]) {
+      delete state.log[key][goalId];
+      if (Object.keys(state.log[key]).length === 0) delete state.log[key];
+    }
+    save(); render();
+    toast("Отменено", "warn");
   }
 
   /* ---------- Тема ---------- */
@@ -333,12 +343,36 @@
     const grid = $("#goalsGrid");
     grid.innerHTML = "";
     const active = activeGoals();
-    $("#emptyHint").hidden = state.goals.length > 0;
     const key = dateKey(viewDate);
     const week = last7Days(viewDate);
     const locked = !isEditableDay(viewDate);
+    const isTodayView = isSameDay(viewDate, new Date());
 
-    for (const g of active) {
+    // На сегодня выполненные цели скрываются до завтра; на других днях видны все
+    const shown = isTodayView ? active.filter((g) => !isDone(key, g.id)) : active;
+    const doneToday = active.filter((g) => isDone(key, g.id)).length;
+
+    // Пустые состояния
+    const hint = $("#emptyHint");
+    if (state.goals.length === 0) {
+      hint.hidden = false;
+      hint.innerHTML = "Пока нет ни одной цели. Нажми «Новая цель», чтобы добавить первую.";
+    } else if (shown.length === 0 && isTodayView && active.length > 0) {
+      hint.hidden = false;
+      hint.innerHTML = "🎉 Все цели на сегодня выполнены! Новые появятся завтра.";
+    } else {
+      hint.hidden = true;
+    }
+    // Заметка о скрытых выполненных
+    const note = $("#goalsNote");
+    if (isTodayView && doneToday > 0 && shown.length > 0) {
+      note.hidden = false;
+      note.textContent = `Выполнено сегодня: ${doneToday} — скрыто до завтра`;
+    } else {
+      note.hidden = true;
+    }
+
+    for (const g of shown) {
       const done = isDone(key, g.id);
       const card = el("div", "goal-card" + (done ? " done" : ""));
       card.style.setProperty("--goal-color", g.color || "#4f46e5");
@@ -366,7 +400,7 @@
         <div class="goal-week-dots">${dots}</div>
         <div class="goal-action">
           <button class="check-btn${done ? " done" : ""}" data-toggle="${g.id}"${locked ? " disabled" : ""}>
-            ${done ? icon("check", 18) + " Выполнено" : (locked ? "Недоступно" : "Отметить выполнение")}
+            ${done ? icon("check", 18) + " Выполнено · отменить" : (locked ? "Недоступно" : "Отметить выполнение")}
             <span class="xp-pill">+${Number(g.xp) || 0} XP</span>
           </button>
         </div>`;
@@ -375,12 +409,44 @@
 
     $$("[data-toggle]", grid).forEach((b) => b.addEventListener("click", () => {
       if (b.disabled) return;
-      toggleGoal(b.dataset.toggle);
+      const id = b.dataset.toggle;
+      if (isDone(dateKey(viewDate), id)) {
+        toggleGoal(id); // снятие отметки (видимо только на прошлых днях)
+      } else {
+        openCompleteModal(id); // подтверждение перед выполнением
+      }
       const c = b.closest(".goal-card");
       if (c) { c.classList.remove("pop"); void c.offsetWidth; c.classList.add("pop"); }
     }));
     $$("[data-edit]", grid).forEach((b) => b.addEventListener("click", () => openGoalModal(b.dataset.edit)));
     $$("[data-achieve]", grid).forEach((b) => b.addEventListener("click", () => openAchieveModal(b.dataset.achieve)));
+  }
+
+  /* ---------- Подтверждение выполнения ---------- */
+  let completingId = null;
+  function openCompleteModal(id) {
+    const g = goalById(id);
+    if (!g) return;
+    if (!isEditableDay(viewDate)) {
+      toast(beforeStart(viewDate) ? "Этот день раньше точки старта" : "Нельзя отмечать будущее", "warn");
+      return;
+    }
+    completingId = id;
+    $("#completeModalGoal").innerHTML =
+      `<div class="goal-icon" style="--goal-color:${g.color || "#4f46e5"}">${renderGoalIcon(g.icon, 20)}</div>
+       <span><b>${escapeHtml(g.name)}</b> · +${Number(g.xp) || 0} XP</span>`;
+    $("#completeModalNote").textContent = isSameDay(viewDate, new Date())
+      ? "После подтверждения цель будет отмечена и скроется до завтра."
+      : `Отметить выполненной за ${humanDate(viewDate)}?`;
+    $("#completeModal").hidden = false;
+    setTimeout(() => $("#completeConfirmBtn").focus(), 30);
+  }
+  function closeCompleteModal() { $("#completeModal").hidden = true; completingId = null; }
+  function confirmComplete() {
+    if (!completingId) return;
+    const id = completingId;
+    closeCompleteModal();
+    toggleGoal(id); // отмечает выполнение + XP + уведомление с отменой
   }
 
   /* ---------- Достижения ---------- */
@@ -663,13 +729,23 @@
     return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
   }
   let toastTimer = null;
-  function toast(msg, kind) {
+  function toast(msg, kind, action) {
     const t = $("#toast");
-    t.textContent = msg;
     t.className = "toast" + (kind ? " " + kind : "");
+    t.innerHTML = "";
+    const span = document.createElement("span");
+    span.textContent = msg;
+    t.appendChild(span);
+    if (action) {
+      const btn = document.createElement("button");
+      btn.className = "toast-action";
+      btn.textContent = action.label;
+      btn.addEventListener("click", () => { t.hidden = true; clearTimeout(toastTimer); action.onClick(); });
+      t.appendChild(btn);
+    }
     t.hidden = false;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { t.hidden = true; }, 2200);
+    toastTimer = setTimeout(() => { t.hidden = true; }, action ? 5000 : 2200);
   }
   function fillStaticIcons() {
     $$("[data-icon]").forEach((e) => {
@@ -692,6 +768,10 @@
     $("#achvCancelBtn").addEventListener("click", closeAchieveModal);
     $("#achvModal").addEventListener("click", (e) => { if (e.target.id === "achvModal") closeAchieveModal(); });
     $("#achvTitle").addEventListener("keydown", (e) => { if (e.key === "Enter") confirmAchieve(); });
+
+    $("#completeConfirmBtn").addEventListener("click", confirmComplete);
+    $("#completeCancelBtn").addEventListener("click", closeCompleteModal);
+    $("#completeModal").addEventListener("click", (e) => { if (e.target.id === "completeModal") closeCompleteModal(); });
 
     $("#prevDay").addEventListener("click", () => {
       const cand = addDays(viewDate, -1);
@@ -721,6 +801,7 @@
       if (e.key !== "Escape") return;
       if (!$("#goalModal").hidden) closeGoalModal();
       if (!$("#achvModal").hidden) closeAchieveModal();
+      if (!$("#completeModal").hidden) closeCompleteModal();
     });
     window.addEventListener("storage", (e) => { if (e.key === STORAGE_KEY) { state = load(); render(); } });
     const mq = window.matchMedia("(prefers-color-scheme: dark)");

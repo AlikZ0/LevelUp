@@ -79,6 +79,7 @@
       <p class="empty-hint" id="emptyHint" hidden>
         Пока нет ни одной цели. Нажми «Новая цель», чтобы добавить первую.
       </p>
+      <p class="goals-note muted" id="goalsNote" hidden></p>
     </section>
 
     <!-- ===== Achievements ===== -->
@@ -163,6 +164,20 @@
         <span class="spacer"></span>
         <button class="btn ghost" id="achvCancelBtn">Отмена</button>
         <button class="btn primary" id="achvSaveBtn"><span data-icon="trophy"></span>Сохранить достижение</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Complete confirmation modal ===== -->
+  <div class="modal-backdrop" id="completeModal" hidden>
+    <div class="modal">
+      <h3>Подтвердить выполнение</h3>
+      <div class="achv-modal-goal" id="completeModalGoal"></div>
+      <p class="achv-note" id="completeModalNote"></p>
+      <div class="modal-actions">
+        <span class="spacer"></span>
+        <button class="btn ghost" id="completeCancelBtn">Отмена</button>
+        <button class="btn primary" id="completeConfirmBtn"><span data-icon="check"></span>Подтвердить</button>
       </div>
     </div>
   </div>
