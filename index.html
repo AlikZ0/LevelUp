@@ -115,6 +115,10 @@
       <div class="week-summary" id="weekSummary"></div>
     </section>
 
+    <div class="daylog-bar">
+      <button class="btn ghost" id="dayLogBtn"><span data-icon="list"></span>Итоги дня — что сделано и что осталось</button>
+    </div>
+
     <footer class="footer">
       <span id="saveStatus" class="save-status">Данные сохраняются локально в этом браузере</span>
       <button class="btn ghost small danger" id="resetBtn" title="Полностью очистить все данные"><span data-icon="trash"></span>Сбросить всё</button>
@@ -178,6 +182,18 @@
         <span class="spacer"></span>
         <button class="btn ghost" id="completeCancelBtn">Отмена</button>
         <button class="btn primary" id="completeConfirmBtn"><span data-icon="check"></span>Подтвердить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Day log modal ===== -->
+  <div class="modal-backdrop" id="dayLogModal" hidden>
+    <div class="modal">
+      <h3 id="dayLogTitle">Итоги дня</h3>
+      <div id="dayLogBody"></div>
+      <div class="modal-actions">
+        <span class="spacer"></span>
+        <button class="btn primary" id="dayLogCloseBtn">Закрыть</button>
       </div>
     </div>
   </div>

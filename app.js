@@ -23,6 +23,7 @@
     trash: '<path d="M4 7h16M9 7V5h6v2M6.5 7l1 12.5h9L17.5 7"/>',
     check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
     calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9.5h16M8 3v4M16 3v4"/>',
+    list: '<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
     flag: '<path d="M6 21V4M6 4h11l-2 3.5L17 11H6"/>',
     sun: '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M4.5 12h-2M21.5 12h-2M5.8 5.8L4.4 4.4M19.6 19.6l-1.4-1.4M18.2 5.8l1.4-1.4M4.4 19.6l1.4-1.4"/>',
     moon: '<path d="M20 14.2A8 8 0 1 1 9.8 4 6.3 6.3 0 0 0 20 14.2z"/>',
@@ -449,6 +450,43 @@
     toggleGoal(id); // отмечает выполнение + XP + уведомление с отменой
   }
 
+  /* ---------- Итоги дня ---------- */
+  function dayLogItem(g, done) {
+    return `<div class="daylog-item ${done ? "done" : "todo"}" style="--goal-color:${g.color || "#4f46e5"}">
+      <span class="goal-icon">${renderGoalIcon(g.icon, 18)}</span>
+      <span class="daylog-name">${escapeHtml(g.name)}</span>
+      <span class="daylog-xp">+${Number(g.xp) || 0} XP</span>
+      <span class="daylog-mark">${done ? icon("check", 16) : ""}</span>
+    </div>`;
+  }
+  function openDayLog() {
+    const key = dateKey(viewDate);
+    const active = activeGoals();
+    const done = active.filter((g) => isDone(key, g.id));
+    const todo = active.filter((g) => !isDone(key, g.id));
+    const dayXp = done.reduce((n, g) => n + (Number(g.xp) || 0), 0);
+    const isTd = isSameDay(viewDate, new Date());
+
+    $("#dayLogTitle").textContent = "Итоги дня · " + (isTd ? "Сегодня" : humanDate(viewDate));
+
+    let html = `<div class="daylog-section">
+      <div class="daylog-head good">${icon("check", 15)} Выполнено (${done.length})</div>
+      ${done.length ? done.map((g) => dayLogItem(g, true)).join("")
+                    : `<div class="daylog-empty">Пока ничего не выполнено</div>`}
+    </div>
+    <div class="daylog-section">
+      <div class="daylog-head">${icon("target", 15)} Осталось (${todo.length})</div>
+      ${todo.length ? todo.map((g) => dayLogItem(g, false)).join("")
+                    : (active.length ? `<div class="daylog-empty">Все цели выполнены 🎉</div>`
+                                     : `<div class="daylog-empty">Нет активных целей</div>`)}
+    </div>
+    <div class="daylog-total">Опыт за день: <b>${dayXp} XP</b></div>`;
+
+    $("#dayLogBody").innerHTML = html;
+    $("#dayLogModal").hidden = false;
+  }
+  function closeDayLog() { $("#dayLogModal").hidden = true; }
+
   /* ---------- Достижения ---------- */
   function renderAchievements() {
     const section = $("#achvSection");
@@ -773,6 +811,10 @@
     $("#completeCancelBtn").addEventListener("click", closeCompleteModal);
     $("#completeModal").addEventListener("click", (e) => { if (e.target.id === "completeModal") closeCompleteModal(); });
 
+    $("#dayLogBtn").addEventListener("click", openDayLog);
+    $("#dayLogCloseBtn").addEventListener("click", closeDayLog);
+    $("#dayLogModal").addEventListener("click", (e) => { if (e.target.id === "dayLogModal") closeDayLog(); });
+
     $("#prevDay").addEventListener("click", () => {
       const cand = addDays(viewDate, -1);
       if (beforeStart(cand)) { toast("Это точка старта", "warn"); return; }
@@ -802,6 +844,7 @@
       if (!$("#goalModal").hidden) closeGoalModal();
       if (!$("#achvModal").hidden) closeAchieveModal();
       if (!$("#completeModal").hidden) closeCompleteModal();
+      if (!$("#dayLogModal").hidden) closeDayLog();
     });
     window.addEventListener("storage", (e) => { if (e.key === STORAGE_KEY) { state = load(); render(); } });
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
