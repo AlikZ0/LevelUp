@@ -587,9 +587,9 @@
       grid.appendChild(cell);
     }
 
-    // Точка старта
-    const inp = $("#startDate");
-    if (inp) { inp.value = state.startDate; inp.max = todayKey(); }
+    // Точка старта (только для чтения)
+    const lbl = $("#startDateLabel");
+    if (lbl) lbl.textContent = formatDate(parseKey(state.startDate).getTime());
   }
 
   function renderSummary() {
@@ -621,21 +621,6 @@
       { v: `${perfectDays}`, l: "идеальных дней (100%)" },
     ].forEach((it) => summary.appendChild(el("div", "summary-card",
       `<div class="v">${it.v}</div><div class="l">${it.l}</div>`)));
-  }
-
-  /* ---------- Точка старта ---------- */
-  function onStartDateChange(e) {
-    const val = e.target.value;
-    if (!isValidKey(val)) { e.target.value = state.startDate; return; }
-    if (parseKey(val) > startOfDay(new Date())) {
-      toast("Точка старта не может быть в будущем", "warn");
-      e.target.value = state.startDate;
-      return;
-    }
-    state.startDate = val;
-    save();
-    render();
-    toast("Точка старта обновлена", "good");
   }
 
   /* ---------- Модалка цели ---------- */
@@ -818,7 +803,6 @@
     $("#calPrev").addEventListener("click", () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); render(); });
     $("#calNext").addEventListener("click", () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); render(); });
     $("#calMonthLabel").addEventListener("click", () => { calMonth = firstOfMonth(new Date()); render(); });
-    $("#startDate").addEventListener("change", onStartDateChange);
 
     $("#exportBtn").addEventListener("click", exportData);
     $("#importBtn").addEventListener("click", () => $("#importInput").click());
