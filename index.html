@@ -7,6 +7,11 @@
   <meta name="description" content="Игровой трекер целей: выполняй ежедневные действия, получай опыт, прокачивай уровень. Все данные хранятся локально." />
   <meta name="theme-color" id="themeColorMeta" content="#fafafa" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="LevelUp" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><circle cx='12' cy='12' r='5'/><circle cx='12' cy='12' r='1.5' fill='%234f46e5'/></svg>" />
   <link rel="stylesheet" href="styles.css" />
   <script>try{var t=localStorage.getItem('levelup.theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
@@ -148,5 +153,12 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="app.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("sw.js").catch(function () { /* оффлайн-режим недоступен */ });
+      });
+    }
+  </script>
 </body>
 </html>
