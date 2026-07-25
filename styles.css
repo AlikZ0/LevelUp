@@ -261,7 +261,17 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
   color: var(--goal-color, var(--gold));
   background: color-mix(in srgb, var(--goal-color, var(--gold)) 14%, transparent);
 }
-.achv-revert { width: 100%; margin-top: 14px; }
+.achv-modal-goal {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  background: var(--surface-2); border: 1px solid var(--line);
+  font-size: 13.5px; color: var(--muted);
+}
+.achv-modal-goal .goal-icon { width: 34px; height: 34px; }
+.achv-modal-goal b { color: var(--text); font-weight: 600; }
+.achv-note {
+  margin: -4px 0 0; font-size: 12.5px; line-height: 1.4; color: var(--muted);
+}
 
 /* ===== Итоги ===== */
 .week-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 12px; }
