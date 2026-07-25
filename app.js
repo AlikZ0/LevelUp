@@ -182,6 +182,17 @@
   const activeGoals = () => state.goals.filter((g) => !g.achievedAt);
   const achievedGoals = () => state.goals.filter((g) => g.achievedAt)
     .sort((a, b) => (b.achievedAt || 0) - (a.achievedAt || 0));
+  // Цель существует только начиная с дня её создания (раньше её просто не было)
+  function goalCreatedDay(g) {
+    const t = g.createdAt;
+    return (typeof t === "number" && isFinite(t)) ? startOfDay(new Date(t)) : null;
+  }
+  function goalExistsOn(g, day) {
+    const cd = goalCreatedDay(g);
+    return !cd || startOfDay(day) >= cd; // нет даты создания → считаем, что была всегда
+  }
+  const goalsExistingOn = (day) => activeGoals().filter((g) => goalExistsOn(g, day));
+
   function totalXpEarned() {
     let sum = 0;
     for (const day in state.log) {
@@ -202,7 +213,8 @@
   function completionsOn(dayKey) {
     const entry = state.log[dayKey];
     if (!entry) return 0;
-    return activeGoals().reduce((n, g) => n + (entry[g.id] ? 1 : 0), 0);
+    const day = parseKey(dayKey);
+    return goalsExistingOn(day).reduce((n, g) => n + (entry[g.id] ? 1 : 0), 0);
   }
   function bestOverallStreak() {
     const days = Object.keys(state.log)
@@ -317,9 +329,10 @@
 
   function renderStats() {
     const key = dateKey(viewDate);
+    const existing = goalsExistingOn(viewDate);
     const doneToday = completionsOn(key);
-    const totalGoals = activeGoals().length;
-    const dayXp = activeGoals().reduce((n, g) => n + (isDone(key, g.id) ? (Number(g.xp) || 0) : 0), 0);
+    const totalGoals = existing.length;
+    const dayXp = existing.reduce((n, g) => n + (isDone(key, g.id) ? (Number(g.xp) || 0) : 0), 0);
     const activeDays = Object.keys(state.log).filter((d) => Object.keys(state.log[d]).length > 0).length;
     const cards = [
       { ic: "check", value: `${doneToday}/${totalGoals}`, label: "выполнено за день" },
@@ -345,16 +358,21 @@
     const locked = !isEditableDay(viewDate);
     const isTodayView = isSameDay(viewDate, new Date());
 
-    // На сегодня выполненные цели скрываются до завтра; на других днях видны все
-    const shown = isTodayView ? active.filter((g) => !isDone(key, g.id)) : active;
-    const doneToday = active.filter((g) => isDone(key, g.id)).length;
+    // Цели, которые существовали в этот день (созданы не позже него)
+    const existing = active.filter((g) => goalExistsOn(g, viewDate));
+    // На сегодня выполненные скрываются до завтра; на других днях видны все существовавшие
+    const shown = isTodayView ? existing.filter((g) => !isDone(key, g.id)) : existing;
+    const doneToday = existing.filter((g) => isDone(key, g.id)).length;
 
     // Пустые состояния
     const hint = $("#emptyHint");
     if (state.goals.length === 0) {
       hint.hidden = false;
       hint.innerHTML = "Пока нет ни одной цели. Нажми «Новая цель», чтобы добавить первую.";
-    } else if (shown.length === 0 && isTodayView && active.length > 0) {
+    } else if (existing.length === 0) {
+      hint.hidden = false;
+      hint.innerHTML = "В этот день целей ещё не было — приложение их не отслеживало.";
+    } else if (shown.length === 0 && isTodayView) {
       hint.hidden = false;
       hint.innerHTML = "🎉 Все цели на сегодня выполнены! Новые появятся завтра.";
     } else {
@@ -457,7 +475,7 @@
   }
   function openDayLog() {
     const key = dateKey(viewDate);
-    const active = activeGoals();
+    const active = goalsExistingOn(viewDate); // только существовавшие в этот день
     const done = active.filter((g) => isDone(key, g.id));
     const todo = active.filter((g) => !isDone(key, g.id));
     const dayXp = done.reduce((n, g) => n + (Number(g.xp) || 0), 0);
@@ -552,13 +570,13 @@
     const first = new Date(y, m, 1);
     const offset = (first.getDay() + 6) % 7; // сдвиг для недели с понедельника
     const daysInMonth = new Date(y, m + 1, 0).getDate();
-    const totalGoals = activeGoals().length;
 
     for (let i = 0; i < offset; i++) grid.appendChild(el("span", "cal-cell empty"));
 
     for (let day = 1; day <= daysInMonth; day++) {
       const d = new Date(y, m, day);
       const key = dateKey(d);
+      const totalGoals = goalsExistingOn(d).length; // сколько целей существовало в этот день
       const ratio = totalGoals ? completionsOn(key) / totalGoals : 0;
       const perfect = totalGoals > 0 && ratio >= 1;
       const disabled = inFuture(d); // прошлые дни доступны для просмотра, будущее — нет
@@ -597,20 +615,20 @@
     // Итоги за отображаемый в календаре месяц (в пределах точки старта и сегодня)
     const y = calMonth.getFullYear(), m = calMonth.getMonth();
     const daysInMonth = new Date(y, m + 1, 0).getDate();
-    let monthXp = 0, monthDone = 0, perfectDays = 0, trackedDays = 0;
-    const active = activeGoals();
-    const totalGoals = active.length;
+    let monthXp = 0, monthDone = 0, perfectDays = 0, trackedDays = 0, possible = 0;
     for (let day = 1; day <= daysInMonth; day++) {
       const d = new Date(y, m, day);
-      if (inFuture(d)) continue; // считаем прошедшие дни месяца и сегодня
+      if (inFuture(d)) continue;
+      const existing = goalsExistingOn(d); // только существовавшие в этот день цели
+      if (existing.length === 0) continue; // до появления целей день не считаем
       trackedDays++;
+      possible += existing.length;
       const key = dateKey(d);
       const dc = completionsOn(key);
       monthDone += dc;
-      if (totalGoals > 0 && dc === totalGoals) perfectDays++;
-      active.forEach((g) => { if (isDone(key, g.id)) monthXp += Number(g.xp) || 0; });
+      if (dc === existing.length) perfectDays++;
+      existing.forEach((g) => { if (isDone(key, g.id)) monthXp += Number(g.xp) || 0; });
     }
-    const possible = trackedDays * totalGoals;
     const rate = possible ? Math.round((monthDone / possible) * 100) : 0;
 
     const summary = $("#weekSummary");
