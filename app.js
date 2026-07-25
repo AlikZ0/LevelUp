@@ -42,6 +42,8 @@
     sunrise: '<path d="M3 18h18M7 18a5 5 0 0 1 10 0M12 3v5M12 8l-2.5-2.5M12 8l2.5-2.5M4.5 12l-1.5-1M19.5 12l1.5-1"/>',
     apple: '<path d="M12 8.2C11 6 8.6 5.6 6.9 6.9 5.2 8.2 4.9 11.6 6.4 15c1 2.3 2.5 4 3.7 4 .8 0 1-.4 1.9-.4s1.1.4 1.9.4c1.2 0 2.7-1.7 3.7-4 1.5-3.4 1.2-6.8-.5-8.1C15.4 5.6 13 6 12 8.2z"/><path d="M12 8.2c0-2 1-3.3 2.6-3.8"/>',
     flame: '<path d="M12 3c.5 3 3.5 4.2 3.5 7.8A3.5 3.5 0 0 1 8.5 11c0-1.3.4-2.2 1.2-3C11 9 12 6 12 3z"/>',
+    trophy: '<path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 6H4.5v1A3.5 3.5 0 0 0 8 10.5M17 6h2.5v1a3.5 3.5 0 0 1-3.5 3.5"/><path d="M9.5 13.5h5l.4 3h-5.8z"/><path d="M8 20h8M12 16.5V20"/>',
+    rotate: '<path d="M4 12a8 8 0 0 1 13.7-5.6L20 9M20 4v5h-5"/><path d="M20 12a8 8 0 0 1-13.7 5.6L4 15M4 20v-5h5"/>',
   };
   const GOAL_ICONS = ["target", "dumbbell", "book", "droplet", "activity", "code",
     "music", "leaf", "pen", "chat", "coin", "heart", "star", "sunrise", "apple", "flame"];
@@ -175,9 +177,17 @@
   }
   const goalById = (id) => state.goals.find((g) => g.id === id);
   const isDone = (dayKey, goalId) => !!(state.log[dayKey] && state.log[dayKey][goalId]);
+  // Активные цели = ежедневные привычки (ещё не отмеченные как достигнутые)
+  const activeGoals = () => state.goals.filter((g) => !g.achievedAt);
+  const achievedGoals = () => state.goals.filter((g) => g.achievedAt)
+    .sort((a, b) => (b.achievedAt || 0) - (a.achievedAt || 0));
+  // День учитывается в статистике, если он не раньше точки старта
+  const countedDay = (dayKey) => !beforeStart(parseKey(dayKey));
+
   function totalXpEarned() {
     let sum = 0;
     for (const day in state.log) {
+      if (!countedDay(day)) continue;
       const entry = state.log[day];
       for (const gid in entry) if (entry[gid]) { const g = goalById(gid); sum += g ? Number(g.xp) || 0 : 0; }
     }
@@ -195,10 +205,11 @@
   function completionsOn(dayKey) {
     const entry = state.log[dayKey];
     if (!entry) return 0;
-    return state.goals.reduce((n, g) => n + (entry[g.id] ? 1 : 0), 0);
+    return activeGoals().reduce((n, g) => n + (entry[g.id] ? 1 : 0), 0);
   }
   function bestOverallStreak() {
-    const days = Object.keys(state.log).filter((d) => Object.keys(state.log[d]).length > 0).sort();
+    const days = Object.keys(state.log)
+      .filter((d) => countedDay(d) && Object.keys(state.log[d]).length > 0).sort();
     if (!days.length) return 0;
     let best = 1, cur = 1;
     for (let i = 1; i < days.length; i++) {
@@ -272,7 +283,7 @@
     return e;
   }
 
-  function render() { renderLevel(); renderDaybar(); renderStats(); renderGoals(); renderCalendar(); renderSummary(); }
+  function render() { renderLevel(); renderDaybar(); renderStats(); renderGoals(); renderAchievements(); renderCalendar(); renderSummary(); }
 
   function renderLevel() {
     const info = levelInfo(totalXpEarned());
@@ -289,7 +300,7 @@
     const isToday = isSameDay(viewDate, today);
     $("#dayTitle").textContent = isToday ? "Сегодня"
       : isSameDay(viewDate, addDays(today, -1)) ? "Вчера" : WEEKDAYS[viewDate.getDay()];
-    $("#dayDate").textContent = humanDate(viewDate) + (beforeStart(viewDate) ? " · до старта" : "");
+    $("#dayDate").textContent = humanDate(viewDate);
     $("#todayBtn").hidden = isToday;
     $("#nextDay").disabled = isToday;
     $("#nextDay").style.opacity = isToday ? .4 : 1;
@@ -301,9 +312,9 @@
   function renderStats() {
     const key = dateKey(viewDate);
     const doneToday = completionsOn(key);
-    const totalGoals = state.goals.length;
-    const dayXp = state.goals.reduce((n, g) => n + (isDone(key, g.id) ? (Number(g.xp) || 0) : 0), 0);
-    const activeDays = Object.keys(state.log).filter((d) => Object.keys(state.log[d]).length > 0).length;
+    const totalGoals = activeGoals().length;
+    const dayXp = activeGoals().reduce((n, g) => n + (isDone(key, g.id) ? (Number(g.xp) || 0) : 0), 0);
+    const activeDays = Object.keys(state.log).filter((d) => countedDay(d) && Object.keys(state.log[d]).length > 0).length;
     const cards = [
       { ic: "check", value: `${doneToday}/${totalGoals}`, label: "выполнено за день" },
       { ic: "star", value: `${dayXp}`, label: "XP за этот день" },
@@ -322,12 +333,13 @@
   function renderGoals() {
     const grid = $("#goalsGrid");
     grid.innerHTML = "";
+    const active = activeGoals();
     $("#emptyHint").hidden = state.goals.length > 0;
     const key = dateKey(viewDate);
     const week = last7Days(viewDate);
     const locked = !isEditableDay(viewDate);
 
-    for (const g of state.goals) {
+    for (const g of active) {
       const done = isDone(key, g.id);
       const card = el("div", "goal-card" + (done ? " done" : ""));
       card.style.setProperty("--goal-color", g.color || "#4f46e5");
@@ -345,7 +357,8 @@
             <div class="goal-name">${escapeHtml(g.name)}</div>
             <div class="goal-sub">+${Number(g.xp) || 0} XP за выполнение</div>
           </div>
-          <button class="goal-edit" title="Редактировать" data-edit="${g.id}">${icon("pencil", 16)}</button>
+          <button class="goal-iconbtn" title="Отметить цель достигнутой" data-achieve="${g.id}">${icon("trophy", 16)}</button>
+          <button class="goal-iconbtn" title="Редактировать" data-edit="${g.id}">${icon("pencil", 16)}</button>
         </div>
         <div class="goal-streak ${streak > 0 ? "active" : "inactive"}">
           ${streak > 0 ? `${icon("flame", 15)} Серия: ${streak} ${plural(streak, "день", "дня", "дней")}`
@@ -368,6 +381,50 @@
       if (c) { c.classList.remove("pop"); void c.offsetWidth; c.classList.add("pop"); }
     }));
     $$("[data-edit]", grid).forEach((b) => b.addEventListener("click", () => openGoalModal(b.dataset.edit)));
+    $$("[data-achieve]", grid).forEach((b) => b.addEventListener("click", () => achieveGoal(b.dataset.achieve)));
+  }
+
+  /* ---------- Достижения ---------- */
+  function renderAchievements() {
+    const section = $("#achvSection");
+    const grid = $("#achvGrid");
+    const list = achievedGoals();
+    section.hidden = list.length === 0;
+    $("#achvCount").textContent = list.length
+      ? `${list.length} ${plural(list.length, "цель", "цели", "целей")}` : "";
+    grid.innerHTML = "";
+    for (const g of list) {
+      const card = el("div", "achv-card");
+      card.style.setProperty("--goal-color", g.color || "#4f46e5");
+      card.innerHTML = `
+        <div class="achv-ribbon">${icon("trophy", 14)} Достигнуто</div>
+        <div class="goal-top">
+          <div class="goal-icon">${renderGoalIcon(g.icon)}</div>
+          <div class="goal-info">
+            <div class="goal-name">${escapeHtml(g.name)}</div>
+            <div class="goal-sub">${formatDate(g.achievedAt)}</div>
+          </div>
+          <button class="goal-iconbtn" title="Редактировать" data-edit="${g.id}">${icon("pencil", 16)}</button>
+        </div>
+        <button class="btn ghost small achv-revert" data-revert="${g.id}">${icon("rotate", 15)} Вернуть в активные</button>`;
+      grid.appendChild(card);
+    }
+    $$("[data-edit]", grid).forEach((b) => b.addEventListener("click", () => openGoalModal(b.dataset.edit)));
+    $$("[data-revert]", grid).forEach((b) => b.addEventListener("click", () => unachieveGoal(b.dataset.revert)));
+  }
+  function achieveGoal(id) {
+    const g = goalById(id);
+    if (!g) return;
+    g.achievedAt = Date.now();
+    save(); render();
+    toast(`🏆 Цель достигнута: ${g.name}!`, "good");
+  }
+  function unachieveGoal(id) {
+    const g = goalById(id);
+    if (!g) return;
+    delete g.achievedAt;
+    save(); render();
+    toast("Цель снова в активных", "warn");
   }
 
   /* ---------- Календарь ---------- */
@@ -384,7 +441,7 @@
     const first = new Date(y, m, 1);
     const offset = (first.getDay() + 6) % 7; // сдвиг для недели с понедельника
     const daysInMonth = new Date(y, m + 1, 0).getDate();
-    const totalGoals = state.goals.length;
+    const totalGoals = activeGoals().length;
 
     for (let i = 0; i < offset; i++) grid.appendChild(el("span", "cal-cell empty"));
 
@@ -407,7 +464,7 @@
       cell.type = "button";
       cell.title = humanDate(d) + (isStart ? " · старт" : "") + (totalGoals ? ` · ${completionsOn(key)}/${totalGoals}` : "");
       if (!disabled && ratio > 0) {
-        cell.style.background = `color-mix(in srgb, var(--goal-mix, var(--accent)) ${Math.round(18 + ratio * 62)}%, transparent)`;
+        cell.style.background = `color-mix(in srgb, var(--accent) ${Math.round(18 + ratio * 62)}%, transparent)`;
         if (ratio >= 0.6) cell.classList.add("filled");
       }
       cell.innerHTML = `<span class="cal-num">${day}</span>` +
@@ -430,7 +487,8 @@
     const y = calMonth.getFullYear(), m = calMonth.getMonth();
     const daysInMonth = new Date(y, m + 1, 0).getDate();
     let monthXp = 0, monthDone = 0, perfectDays = 0, trackedDays = 0;
-    const totalGoals = state.goals.length;
+    const active = activeGoals();
+    const totalGoals = active.length;
     for (let day = 1; day <= daysInMonth; day++) {
       const d = new Date(y, m, day);
       if (!isEditableDay(d)) continue;
@@ -439,7 +497,7 @@
       const dc = completionsOn(key);
       monthDone += dc;
       if (totalGoals > 0 && dc === totalGoals) perfectDays++;
-      state.goals.forEach((g) => { if (isDone(key, g.id)) monthXp += Number(g.xp) || 0; });
+      active.forEach((g) => { if (isDone(key, g.id)) monthXp += Number(g.xp) || 0; });
     }
     const possible = trackedDays * totalGoals;
     const rate = possible ? Math.round((monthDone / possible) * 100) : 0;
@@ -589,6 +647,10 @@
     if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return few;
     return many;
   }
+  function formatDate(ts) {
+    const d = new Date(ts);
+    return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  }
   let toastTimer = null;
   function toast(msg, kind) {
     const t = $("#toast");
@@ -628,6 +690,7 @@
 
     $("#calPrev").addEventListener("click", () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); render(); });
     $("#calNext").addEventListener("click", () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); render(); });
+    $("#calMonthLabel").addEventListener("click", () => { calMonth = firstOfMonth(new Date()); render(); });
     $("#startDate").addEventListener("change", onStartDateChange);
 
     $("#exportBtn").addEventListener("click", exportData);

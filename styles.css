@@ -16,6 +16,7 @@
   --good: #16a34a;
   --warn: #d97706;
   --danger: #dc2626;
+  --gold: #d4a017;
   --radius: 14px;
   --radius-sm: 10px;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -38,6 +39,7 @@
     --good: #34d17f;
     --warn: #f0a836;
     --danger: #ff6b6b;
+    --gold: #e8b84b;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
   }
 }
@@ -54,6 +56,7 @@
   --good: #34d17f;
   --warn: #f0a836;
   --danger: #ff6b6b;
+  --gold: #e8b84b;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
@@ -202,11 +205,13 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
 .goal-info { flex: 1; min-width: 0; }
 .goal-name { font-size: 16px; font-weight: 600; word-break: break-word; }
 .goal-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
-.goal-edit {
+.goal-iconbtn {
   background: transparent; border: none; color: var(--muted); cursor: pointer;
   padding: 5px; border-radius: 8px; line-height: 0; display: inline-flex;
+  touch-action: manipulation;
 }
-.goal-edit:hover { background: var(--surface-2); color: var(--text); }
+.goal-iconbtn:hover { background: var(--surface-2); color: var(--text); }
+.goal-iconbtn[data-achieve]:hover { color: var(--gold); }
 
 .goal-streak {
   display: inline-flex; align-items: center; gap: 5px;
@@ -235,23 +240,30 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
 
 .empty-hint { text-align: center; color: var(--muted); padding: 28px; border: 1px dashed var(--line-strong); border-radius: var(--radius); font-size: 14px; }
 
-/* ===== Таблица недели ===== */
-.week-table-wrap {
-  overflow-x: auto; -webkit-overflow-scrolling: touch;
-  border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
+/* ===== Достижения ===== */
+.achv-section .section-head h3 { display: inline-flex; align-items: center; gap: 8px; }
+.achv-title-ic { color: var(--gold); }
+.achv-card {
+  position: relative; background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--gold) 40%, var(--line));
+  border-radius: var(--radius); padding: 16px; overflow: hidden;
 }
-.week-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 440px; }
-.week-table th, .week-table td { padding: 10px 6px; text-align: center; border-bottom: 1px solid var(--line); }
-.week-table th { color: var(--muted); font-weight: 550; font-size: 12px; }
-.week-table td.goal-cell { text-align: left; font-weight: 550; white-space: nowrap; padding-left: 14px; }
-.week-table td.goal-cell .dot { display: inline-block; width: 8px; height: 8px; border-radius: 3px; margin-right: 8px; vertical-align: middle; }
-.week-table td.goal-cell .cell-ic { display: inline-flex; vertical-align: middle; margin-right: 6px; color: var(--goal-color, var(--muted)); }
-.week-table tr:last-child td { border-bottom: none; }
-.week-table .col-today { background: var(--accent-soft); }
-.cell-mark { display: inline-flex; }
-.cell-mark.on { color: var(--good); }
-.cell-mark.off { color: var(--line-strong); }
+.achv-card::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: linear-gradient(90deg, var(--gold), color-mix(in srgb, var(--gold) 40%, transparent));
+}
+.achv-ribbon {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; font-weight: 650; color: var(--gold);
+  text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px;
+}
+.achv-card .goal-icon {
+  color: var(--goal-color, var(--gold));
+  background: color-mix(in srgb, var(--goal-color, var(--gold)) 14%, transparent);
+}
+.achv-revert { width: 100%; margin-top: 14px; }
 
+/* ===== Итоги ===== */
 .week-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 12px; }
 .summary-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 13px 14px; }
 .summary-card .v { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; }
@@ -260,7 +272,13 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
 /* ===== Календарь ===== */
 .btn.round.sm { width: 34px; height: 34px; font-size: 18px; }
 .cal-nav { display: flex; align-items: center; gap: 10px; }
-.cal-month { font-size: 14px; font-weight: 600; min-width: 120px; text-align: center; }
+.cal-month {
+  font-size: 14px; font-weight: 600; min-width: 120px; text-align: center;
+  font-family: inherit; color: var(--text); background: transparent; border: none;
+  cursor: pointer; padding: 6px 8px; border-radius: var(--radius-sm);
+  touch-action: manipulation;
+}
+.cal-month:hover { background: var(--surface-2); }
 .cal-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
 .cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 8px; }
 .cal-wd { text-align: center; font-size: 11.5px; color: var(--muted); font-weight: 550; }
@@ -373,7 +391,7 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
 /* Крупнее зоны нажатия на сенсорных экранах */
 @media (hover: none) {
   .check-btn { padding: 13px; }
-  .goal-edit { padding: 8px; }
+  .goal-iconbtn { padding: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

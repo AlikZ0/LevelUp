@@ -76,13 +76,22 @@
       </p>
     </section>
 
+    <!-- ===== Achievements ===== -->
+    <section class="achv-section" id="achvSection" hidden>
+      <div class="section-head">
+        <h3><span data-icon="trophy" data-icon-size="18" class="achv-title-ic"></span>Достижения</h3>
+        <span class="muted" id="achvCount"></span>
+      </div>
+      <div class="goals-grid" id="achvGrid"></div>
+    </section>
+
     <!-- ===== Calendar ===== -->
     <section class="cal-section">
       <div class="section-head">
         <h3>Календарь</h3>
         <div class="cal-nav">
           <button class="btn round sm" id="calPrev" aria-label="Предыдущий месяц"><span data-icon="chevron-left" data-icon-size="18"></span></button>
-          <span id="calMonthLabel" class="cal-month"></span>
+          <button id="calMonthLabel" class="cal-month" type="button" title="Вернуться к текущему месяцу"></button>
           <button class="btn round sm" id="calNext" aria-label="Следующий месяц"><span data-icon="chevron-right" data-icon-size="18"></span></button>
         </div>
       </div>
