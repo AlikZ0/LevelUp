@@ -388,7 +388,7 @@ body:has(.modal-backdrop:not([hidden])) { overflow: hidden; }
 .goals-note { margin: 14px 0 0; font-size: 12.5px; text-align: center; }
 
 /* ===== Итоги дня ===== */
-.daylog-bar { margin-top: 26px; }
+.daylog-bar { margin-top: 26px; display: grid; gap: 10px; }
 .daylog-bar .btn { width: 100%; }
 .daylog-section { margin-bottom: 16px; }
 .daylog-head {
@@ -416,6 +416,39 @@ body:has(.modal-backdrop:not([hidden])) { overflow: hidden; }
   font-size: 13.5px; color: var(--muted);
 }
 .daylog-total b { color: var(--text); font-size: 15px; }
+
+/* ===== История и статистика ===== */
+.modal-wide { max-width: 520px; }
+.st-section { margin-bottom: 18px; }
+.st-goal {
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); padding: 12px 13px; margin-bottom: 9px;
+}
+.st-goal-top { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+.st-goal-top .goal-icon {
+  width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+  color: var(--goal-color, var(--accent));
+  background: color-mix(in srgb, var(--goal-color, var(--accent)) 14%, transparent);
+}
+.st-name { font-weight: 600; font-size: 14.5px; }
+.st-dots { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 9px; }
+.st-dot { width: 14px; height: 14px; border-radius: 4px; background: #0000; border: 1px solid var(--line); }
+.st-dot.off { background: var(--surface); }
+.st-dot.on { background: var(--goal-color, var(--good)); border-color: transparent; }
+.st-dot.na { border-style: dashed; opacity: .4; }
+.st-meta { font-size: 12.5px; color: var(--muted); }
+.st-meta b { color: var(--text); }
+.st-day { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.st-day:last-child { border-bottom: none; }
+.st-day-head { font-size: 12.5px; color: var(--muted); font-weight: 600; margin-bottom: 7px; }
+.st-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.st-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12.5px; padding: 4px 9px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--line);
+  color: var(--goal-color, var(--text)); margin-bottom: 4px;
+}
+.st-chip .ic { color: var(--goal-color, var(--accent)); }
 @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; } }
 
 /* ===== Pull-to-refresh ===== */
