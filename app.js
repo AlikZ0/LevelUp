@@ -96,9 +96,9 @@
     const key = state && state.startDate ? state.startDate : todayKey();
     return startOfDay(parseKey(key));
   }
-  const beforeStart = (d) => startOfDay(d) < startObj();
   const inFuture = (d) => startOfDay(d) > startOfDay(new Date());
-  const isEditableDay = (d) => !beforeStart(d) && !inFuture(d);
+  // Редактировать можно любой день, кроме будущего (точка старта — только метка)
+  const isEditableDay = (d) => !inFuture(d);
 
   /* ---------- Хранилище ---------- */
   function defaultState() {
@@ -181,13 +181,9 @@
   const activeGoals = () => state.goals.filter((g) => !g.achievedAt);
   const achievedGoals = () => state.goals.filter((g) => g.achievedAt)
     .sort((a, b) => (b.achievedAt || 0) - (a.achievedAt || 0));
-  // День учитывается в статистике, если он не раньше точки старта
-  const countedDay = (dayKey) => !beforeStart(parseKey(dayKey));
-
   function totalXpEarned() {
     let sum = 0;
     for (const day in state.log) {
-      if (!countedDay(day)) continue;
       const entry = state.log[day];
       for (const gid in entry) if (entry[gid]) { const g = goalById(gid); sum += g ? Number(g.xp) || 0 : 0; }
     }
@@ -209,7 +205,7 @@
   }
   function bestOverallStreak() {
     const days = Object.keys(state.log)
-      .filter((d) => countedDay(d) && Object.keys(state.log[d]).length > 0).sort();
+      .filter((d) => Object.keys(state.log[d]).length > 0).sort();
     if (!days.length) return 0;
     let best = 1, cur = 1;
     for (let i = 1; i < days.length; i++) {
@@ -227,7 +223,7 @@
   }
   function toggleGoal(goalId) {
     if (!isEditableDay(viewDate)) {
-      toast(beforeStart(viewDate) ? "Этот день раньше точки старта" : "Нельзя отмечать будущее", "warn");
+      toast("Нельзя отмечать будущее", "warn");
       return;
     }
     const key = dateKey(viewDate);
@@ -314,9 +310,8 @@
     $("#todayBtn").hidden = isToday;
     $("#nextDay").disabled = isToday;
     $("#nextDay").style.opacity = isToday ? .4 : 1;
-    const atStart = isSameDay(viewDate, startObj());
-    $("#prevDay").disabled = atStart;
-    $("#prevDay").style.opacity = atStart ? .4 : 1;
+    $("#prevDay").disabled = false;
+    $("#prevDay").style.opacity = 1;
   }
 
   function renderStats() {
@@ -324,7 +319,7 @@
     const doneToday = completionsOn(key);
     const totalGoals = activeGoals().length;
     const dayXp = activeGoals().reduce((n, g) => n + (isDone(key, g.id) ? (Number(g.xp) || 0) : 0), 0);
-    const activeDays = Object.keys(state.log).filter((d) => countedDay(d) && Object.keys(state.log[d]).length > 0).length;
+    const activeDays = Object.keys(state.log).filter((d) => Object.keys(state.log[d]).length > 0).length;
     const cards = [
       { ic: "check", value: `${doneToday}/${totalGoals}`, label: "выполнено за день" },
       { ic: "star", value: `${dayXp}`, label: "XP за этот день" },
@@ -429,7 +424,7 @@
     const g = goalById(id);
     if (!g) return;
     if (!isEditableDay(viewDate)) {
-      toast(beforeStart(viewDate) ? "Этот день раньше точки старта" : "Нельзя отмечать будущее", "warn");
+      toast("Нельзя отмечать будущее", "warn");
       return;
     }
     completingId = id;
@@ -638,8 +633,6 @@
       return;
     }
     state.startDate = val;
-    // если текущий выбранный день оказался раньше старта — подвинем на старт
-    if (beforeStart(viewDate)) viewDate = startObj();
     save();
     render();
     toast("Точка старта обновлена", "good");
@@ -815,11 +808,7 @@
     $("#dayLogCloseBtn").addEventListener("click", closeDayLog);
     $("#dayLogModal").addEventListener("click", (e) => { if (e.target.id === "dayLogModal") closeDayLog(); });
 
-    $("#prevDay").addEventListener("click", () => {
-      const cand = addDays(viewDate, -1);
-      if (beforeStart(cand)) { toast("Это точка старта", "warn"); return; }
-      setViewDate(cand);
-    });
+    $("#prevDay").addEventListener("click", () => setViewDate(addDays(viewDate, -1)));
     $("#nextDay").addEventListener("click", () => {
       if (isSameDay(viewDate, new Date())) return;
       setViewDate(addDays(viewDate, 1));
