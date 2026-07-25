@@ -24,6 +24,7 @@
     check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
     calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9.5h16M8 3v4M16 3v4"/>',
     list: '<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
+    refresh: '<path d="M20 11a8 8 0 1 0-.5 4"/><path d="M20 4v5h-5"/>',
     flag: '<path d="M6 21V4M6 4h11l-2 3.5L17 11H6"/>',
     sun: '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M4.5 12h-2M21.5 12h-2M5.8 5.8L4.4 4.4M19.6 19.6l-1.4-1.4M18.2 5.8l1.4-1.4M4.4 19.6l1.4-1.4"/>',
     moon: '<path d="M20 14.2A8 8 0 1 1 9.8 4 6.3 6.3 0 0 0 20 14.2z"/>',
@@ -824,6 +825,56 @@
     mq.addEventListener("change", () => { if (!localStorage.getItem(THEME_KEY)) renderThemeToggle(); });
   }
 
+  /* ---------- Pull-to-refresh (потяни вниз сверху → перезагрузка) ---------- */
+  function setupPullToRefresh() {
+    const ptr = $("#ptr");
+    if (!ptr || !("ontouchstart" in window)) return;
+    ptr.innerHTML = icon("refresh", 22);
+    const THRESHOLD = 70, MAX = 90, RESIST = 0.5;
+    let startY = 0, pulling = false, pull = 0;
+    const anyModalOpen = () => !!document.querySelector(".modal-backdrop:not([hidden])");
+    const atTop = () => (window.scrollY || document.documentElement.scrollTop || 0) <= 0;
+    function show(px) {
+      pull = px;
+      ptr.style.transition = "none";
+      ptr.style.transform = `translateX(-50%) translateY(${px}px)`;
+      ptr.style.opacity = Math.min(1, px / THRESHOLD);
+      ptr.classList.toggle("ready", px >= THRESHOLD);
+    }
+    function reset() {
+      ptr.classList.remove("ready", "spin");
+      ptr.style.transition = "transform .2s ease, opacity .2s ease";
+      ptr.style.transform = "translateX(-50%) translateY(-56px)";
+      ptr.style.opacity = "0";
+    }
+    window.addEventListener("touchstart", (e) => {
+      if (e.touches.length !== 1 || anyModalOpen() || !atTop()) { pulling = false; return; }
+      startY = e.touches[0].clientY; pulling = true; pull = 0;
+    }, { passive: true });
+    window.addEventListener("touchmove", (e) => {
+      if (!pulling) return;
+      const dy = e.touches[0].clientY - startY;
+      if (dy <= 0 || !atTop()) { pulling = false; reset(); return; }
+      e.preventDefault(); // берём жест на себя
+      show(Math.min(dy * RESIST, MAX));
+    }, { passive: false });
+    function end() {
+      if (!pulling) return;
+      pulling = false;
+      if (pull >= THRESHOLD) {
+        ptr.classList.add("spin");
+        ptr.style.transition = "transform .2s ease";
+        ptr.style.transform = "translateX(-50%) translateY(18px)";
+        ptr.style.opacity = "1";
+        setTimeout(() => location.reload(), 150);
+      } else {
+        reset();
+      }
+    }
+    window.addEventListener("touchend", end);
+    window.addEventListener("touchcancel", () => { if (pulling) { pulling = false; reset(); } });
+  }
+
   /* ---------- Старт ---------- */
   function init() {
     if (!storageAvailable()) toast("localStorage недоступен — данные не сохранятся. Используйте экспорт.", "warn");
@@ -832,6 +883,7 @@
     renderThemeToggle();
     buildPickers();
     bindEvents();
+    setupPullToRefresh();
     render();
     save();
   }

@@ -66,6 +66,7 @@
 html {
   -webkit-text-size-adjust: 100%;
   touch-action: manipulation; /* убирает зум по двойному тапу, оставляя pinch-zoom */
+  overscroll-behavior-y: contain; /* отключаем нативный pull-to-refresh — используем свой */
 }
 
 body {
@@ -414,6 +415,21 @@ body:has(.modal-backdrop:not([hidden])) { overflow: hidden; }
 }
 .daylog-total b { color: var(--text); font-size: 15px; }
 @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; } }
+
+/* ===== Pull-to-refresh ===== */
+.ptr {
+  position: fixed; top: 8px; left: 50%;
+  transform: translateX(-50%) translateY(-56px); opacity: 0;
+  width: 40px; height: 40px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--surface); border: 1px solid var(--line); color: var(--accent);
+  box-shadow: 0 4px 14px rgba(0,0,0,.18); z-index: 70; pointer-events: none;
+}
+.ptr.ready { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, var(--line)); }
+.ptr .ic { transition: transform .15s ease; }
+.ptr.ready .ic { transform: rotate(-180deg); }
+.ptr.spin .ic { animation: ptrspin .7s linear infinite; }
+@keyframes ptrspin { to { transform: rotate(360deg); } }
 
 @keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.035); } 100% { transform: scale(1); } }
 .pop { animation: pop .3s ease; }
